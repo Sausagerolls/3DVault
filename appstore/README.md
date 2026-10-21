@@ -1,10 +1,10 @@
 # Releasing to the App Store
 
-The iOS app (iPhone and iPad) and the Mac app are separate App Store apps:
+The iOS app (iPhone and iPad) and the Mac app are one App Store record with universal purchase, so both use the bundle ID `com.3dvault.mac`:
 
-| App | Bundle ID | Extras |
+| Platform | Bundle ID | Extras |
 | --- | --- | --- |
-| iOS | `com.3dvault.ios` | Share extension `com.3dvault.ios.share`, App Group `group.com.3dvault.shared` |
+| iOS | `com.3dvault.mac` | Share extension `com.3dvault.mac.share`, App Group `group.com.3dvault.shared` |
 | Mac | `com.3dvault.mac` | App Sandbox |
 
 The store text, keywords and App Review notes are in [metadata.md](metadata.md). The privacy policy is [PRIVACY.md](../PRIVACY.md).
@@ -21,11 +21,9 @@ The store text, keywords and App Review notes are in [metadata.md](metadata.md).
 ## One-time setup in App Store Connect
 
 1. Sign in at https://appstoreconnect.apple.com. Accept any pending agreements under Business.
-2. Create two apps under Apps > + > New App:
-   - iOS, bundle ID `com.3dvault.ios`, SKU `3dvault-ios`.
-   - macOS, bundle ID `com.3dvault.mac`, SKU `3dvault-mac`.
-   If a bundle ID is not in the list, build once with `scripts/release.sh` (it registers IDs automatically) or add it at https://developer.apple.com/account/resources/identifiers.
-3. Under App Privacy, answer "No, we do not collect data from this app" for both apps.
+2. Create one app under Apps > + > New App with both iOS and macOS ticked and bundle ID `com.3dvault.mac`.
+   If the bundle ID is not in the list, build once with `scripts/release.sh` (it registers IDs automatically) or add it at https://developer.apple.com/account/resources/identifiers.
+3. Under App Privacy, answer "No, we do not collect data from this app".
 4. Fill in the listing from [metadata.md](metadata.md).
 
 ## Demo server for App Review
@@ -50,7 +48,7 @@ To rebuild its sample library:
    scripts/release.sh mac --upload
    ```
 
-   Without `--upload`, the script exports `dist/ios/3DVault.ipa` and `dist/mac/3DVault.pkg` instead. You can upload these with Apple's Transporter app. Uploading needs your Apple ID signed in under Xcode > Settings > Accounts.
+   Without `--upload`, the script exports `dist/ios/3DVault.ipa` and `dist/mac/3DVault.pkg` instead. You can upload these with Apple's Transporter app. Uploading needs your Apple ID signed in under Xcode > Settings > Accounts, or an App Store Connect API key in `ASC_KEY_PATH`, `ASC_KEY_ID` and `ASC_ISSUER`.
 3. In App Store Connect, wait for the build to finish processing. Optionally test it in TestFlight first.
 4. Attach the build to the version and submit it for review.
 

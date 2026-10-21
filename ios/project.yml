@@ -57,7 +57,7 @@ targets:
             LSItemContentTypes: [public.data]
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.3dvault.ios
+        PRODUCT_BUNDLE_IDENTIFIER: com.3dvault.mac
         PRODUCT_NAME: 3DVault
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -96,7 +96,7 @@ targets:
               NSExtensionActivationSupportsImageWithMaxCount: 20
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.3dvault.ios.share
+        PRODUCT_BUNDLE_IDENTIFIER: com.3dvault.mac.share
         PRODUCT_NAME: 3DVaultShare
         TARGETED_DEVICE_FAMILY: "1,2"
         GENERATE_INFOPLIST_FILE: NO

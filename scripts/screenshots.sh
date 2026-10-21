@@ -22,10 +22,10 @@ xcodebuild build -project 3DVault-iOS.xcodeproj -scheme 3DVault -configuration D
 app="$root/ios/build/Build/Products/Debug-iphonesimulator/3DVault.app"
 
 shoot() {  # device, file name, model id or empty
-  xcrun simctl terminate "$1" com.3dvault.ios 2>/dev/null || true
+  xcrun simctl terminate "$1" com.3dvault.mac 2>/dev/null || true
   SIMCTL_CHILD_VAULT_TEST_SERVER=$VAULT_TEST_SERVER SIMCTL_CHILD_VAULT_TEST_USER=$VAULT_TEST_USER \
     SIMCTL_CHILD_VAULT_TEST_PASSWORD=$VAULT_TEST_PASSWORD SIMCTL_CHILD_VAULT_TEST_MODEL=$3 \
-    xcrun simctl launch "$1" com.3dvault.ios > /dev/null
+    xcrun simctl launch "$1" com.3dvault.mac > /dev/null
   sleep ${WAIT:-10}
   xcrun simctl io "$1" screenshot "$out/$2.png" > /dev/null 2>&1
   echo "$out/$2.png"

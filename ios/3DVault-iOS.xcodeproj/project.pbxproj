@@ -379,7 +379,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.3dvault.ios.share;
+				PRODUCT_BUNDLE_IDENTIFIER = com.3dvault.mac.share;
 				PRODUCT_NAME = 3DVaultShare;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -399,7 +399,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.3dvault.ios;
+				PRODUCT_BUNDLE_IDENTIFIER = com.3dvault.mac;
 				PRODUCT_NAME = 3DVault;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -419,7 +419,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.3dvault.ios;
+				PRODUCT_BUNDLE_IDENTIFIER = com.3dvault.mac;
 				PRODUCT_NAME = 3DVault;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -437,7 +437,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.3dvault.ios.share;
+				PRODUCT_BUNDLE_IDENTIFIER = com.3dvault.mac.share;
 				PRODUCT_NAME = 3DVaultShare;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";

@@ -5,8 +5,9 @@
 #   scripts/release.sh mac            archive and export a .pkg to dist/mac
 #   scripts/release.sh ios --upload   archive and upload straight to App Store Connect
 #
-# Uploading needs the app record to exist in App Store Connect and an Apple ID signed in
-# under Xcode > Settings > Accounts. The build number is a timestamp, so every run is unique.
+# Uploading needs the app record to exist in App Store Connect. Signing and uploading use the
+# Apple ID in Xcode > Settings > Accounts, or an App Store Connect API key when ASC_KEY_PATH,
+# ASC_KEY_ID and ASC_ISSUER are set. The build number is a timestamp, so every run is unique.
 set -euo pipefail
 
 platform=${1:?usage: release.sh ios|mac [--upload]}
@@ -21,6 +22,11 @@ case $platform in
   *) echo "unknown platform: $platform" >&2; exit 1 ;;
 esac
 
+auth=()
+if [[ -n ${ASC_KEY_PATH:-} ]]; then
+  auth=(-authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER")
+fi
+
 out="$root/dist/$platform"
 archive="$out/3DVault.xcarchive"
 rm -rf "$out"
@@ -32,7 +38,7 @@ xcodegen -q
 xcodebuild archive \
   -project "$project" -scheme 3DVault -configuration Release \
   -destination "$destination" -archivePath "$archive" \
-  -allowProvisioningUpdates \
+  -allowProvisioningUpdates $auth \
   CURRENT_PROJECT_VERSION="$build" > "$out/archive.log" 2>&1 \
   || { tail -30 "$out/archive.log" >&2; echo "archive failed, full log: $out/archive.log" >&2; exit 1; }
 
@@ -53,7 +59,7 @@ cat > "$opts" <<PLIST
 PLIST
 
 xcodebuild -exportArchive -archivePath "$archive" -exportPath "$out" \
-  -exportOptionsPlist "$opts" -allowProvisioningUpdates
+  -exportOptionsPlist "$opts" -allowProvisioningUpdates $auth
 
 version=$(/usr/libexec/PlistBuddy -c "Print :ApplicationProperties:CFBundleShortVersionString" "$archive/Info.plist")
 echo "3DVault $platform $version ($build) -> $out"
