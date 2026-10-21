@@ -1,0 +1,21 @@
+services:
+  3dvault:
+    image: 3dvault:latest
+    build: .
+    container_name: 3dvault
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # Owner of files written to the shares (Synology: id of your user, often 1026:100).
+      PUID: "1000"
+      PGID: "1000"
+      TZ: Europe/London
+      VAULT_TRASH_DAYS: "30"
+      VAULT_INBOX_POLL: "30"
+      # Set true if you put 3DVault behind HTTPS (e.g. Tailscale Serve).
+      VAULT_COOKIE_SECURE: "false"
+    volumes:
+      - ./library:/library   # model folders, browsable over SMB
+      - ./data:/data         # database, thumbnails, previews
+      - ./inbox:/inbox       # drop files here to auto-import

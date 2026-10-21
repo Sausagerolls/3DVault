@@ -1,0 +1,97 @@
+name: 3DVault-iOS
+options:
+  bundleIdPrefix: com.3dvault
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+packages:
+  VaultKit:
+    path: ../VaultKit
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    MARKETING_VERSION: "1.0.1"
+    CURRENT_PROJECT_VERSION: "1"
+    # Set your Apple Developer team ID here (or in Xcode > Signing) to run on a device.
+    DEVELOPMENT_TEAM: J4UJD4Z33J
+    CODE_SIGN_STYLE: Automatic
+targets:
+  3DVault:
+    type: application
+    platform: iOS
+    sources:
+      - App
+      - ../Shared
+    dependencies:
+      - package: VaultKit
+      - target: 3DVaultShare
+    entitlements:
+      path: App/3DVault.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.3dvault.shared]
+        keychain-access-groups: ["$(AppIdentifierPrefix)com.3dvault.shared"]
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: 3DVault
+        UILaunchScreen: {}
+        UIApplicationSupportsIndirectInputEvents: true
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        # Home servers are usually plain HTTP on the LAN or tailnet.
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+        NSLocalNetworkUsageDescription: 3DVault connects to your 3DVault server on the local network.
+        NSCameraUsageDescription: Take photos of your prints to add to a model.
+        NSPhotoLibraryUsageDescription: Add photos of your prints to a model.
+        KeychainGroup: "$(AppIdentifierPrefix)com.3dvault.shared"
+        AppGroup: group.com.3dvault.shared
+        LSSupportsOpeningDocumentsInPlace: false
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: 3D Print File
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.data]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.3dvault.ios
+        PRODUCT_NAME: 3DVault
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        GENERATE_INFOPLIST_FILE: NO
+
+  3DVaultShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - Share
+      - App/Services/SharedConfig.swift
+    dependencies:
+      - package: VaultKit
+    entitlements:
+      path: Share/Share.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.3dvault.shared]
+        keychain-access-groups: ["$(AppIdentifierPrefix)com.3dvault.shared"]
+    info:
+      path: Share/Info.plist
+      properties:
+        CFBundleDisplayName: 3DVault
+        KeychainGroup: "$(AppIdentifierPrefix)com.3dvault.shared"
+        AppGroup: group.com.3dvault.shared
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsFileWithMaxCount: 100
+              NSExtensionActivationSupportsImageWithMaxCount: 20
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.3dvault.ios.share
+        PRODUCT_NAME: 3DVaultShare
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_FILE: NO

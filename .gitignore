@@ -1,0 +1,17 @@
+node_modules/
+.venv/
+__pycache__/
+web/dist/
+/library/
+/data/
+/inbox/
+*.tar.gz
+.DS_Store
+build/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+.build/
+.swiftpm/
+*.db
+*.db-shm
+*.db-wal
