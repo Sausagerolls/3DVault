@@ -12,8 +12,8 @@ settings:
     SWIFT_VERSION: "5.10"
     MARKETING_VERSION: "1.0.1"
     CURRENT_PROJECT_VERSION: "1"
-    # Set your Apple Developer team ID here (or in Xcode > Signing) for signed/notarised builds.
-    DEVELOPMENT_TEAM: ""
+    # Your Apple Developer team ID. Change it (or set it in Xcode > Signing) to build under another account.
+    DEVELOPMENT_TEAM: J4UJD4Z33J
 targets:
   3DVault:
     type: application
@@ -23,12 +23,24 @@ targets:
       - ../Shared
     dependencies:
       - package: VaultKit
+    # The Mac App Store requires the App Sandbox. Files come in through open panels, drops and
+    # a bookmarked Inbox folder; everything else lives in the app's container.
+    entitlements:
+      path: App/3DVault.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.security.files.user-selected.read-write: true
+        com.apple.security.files.bookmarks.app-scope: true
     info:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: 3DVault
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.productivity
-        NSHumanReadableCopyright: ""
+        NSHumanReadableCopyright: "Copyright © 2026 Jake Watts. MIT License."
+        ITSAppUsesNonExemptEncryption: false
         # Home servers are usually plain HTTP on the LAN or tailnet.
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true

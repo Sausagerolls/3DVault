@@ -20,12 +20,14 @@
 		72D45949F323FBD7E9A2391C /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D360C5F2AF04DF78DAD41339 /* MainView.swift */; };
 		79AFB1FE8CFC8F369A2A1F57 /* VaultKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0F3E4B1752238C805527839B /* VaultKit */; };
 		9AA6F290AA5D64BD042ADABE /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB096020F5968AAD825AF0F /* LoginView.swift */; };
+		A1C9E57E42A97DF8AF1D4A55 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 57676A81AD5CDAB13D36633F /* PrivacyInfo.xcprivacy */; };
 		A7C096001A3FF4D52E3243B2 /* ThumbnailLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E7FFAF33780C807E378CE9 /* ThumbnailLoader.swift */; };
 		A9A0FDF25D9DB1498E729F70 /* VaultKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1B3062130EF3B37ACCD459D5 /* VaultKit */; };
 		B0983655ED5BA87498BEA1C0 /* UploadSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50D7A0E503827618FB0DE788 /* UploadSheet.swift */; };
 		B8CDC40A406464EB1C2AF448 /* PinStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C9B7AD712936FF78CBDE749 /* PinStore.swift */; };
 		CE6FC820B1DC36B1A8DAF007 /* BulkSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 146543F98888099A20FB665A /* BulkSheet.swift */; };
 		CF755333D94F7E310EBD91C1 /* ModelActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B510AB899FF17418EC795E8F /* ModelActions.swift */; };
+		D426E6BCB162A9725878F462 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 82A4AE1F1A81BA244996E161 /* PrivacyInfo.xcprivacy */; };
 		DA2AC8384F16486CB141598F /* SharedConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C06FF6CB299A7BF70A9A3C3 /* SharedConfig.swift */; };
 		DA9CFC35D50AC2603D3DA4CC /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81361AA711F7175983107DB7 /* AppState.swift */; };
 		F2B9123F095B5484F989C4BD /* ModelDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A0134562588785D9E552922 /* ModelDetailView.swift */; };
@@ -65,11 +67,13 @@
 		2C9B7AD712936FF78CBDE749 /* PinStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinStore.swift; sourceTree = "<group>"; };
 		3390F7B3C86EC8802FFD7DE0 /* FileCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileCache.swift; sourceTree = "<group>"; };
 		50D7A0E503827618FB0DE788 /* UploadSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadSheet.swift; sourceTree = "<group>"; };
+		57676A81AD5CDAB13D36633F /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		6A0134562588785D9E552922 /* ModelDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDetailView.swift; sourceTree = "<group>"; };
 		6DB27ACF8650626DD0449D9D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6DCD548E1B93597E00866E88 /* VaultKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = VaultKit; path = ../VaultKit; sourceTree = SOURCE_ROOT; };
 		73B3AC9CF665CE36F876AE98 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		81361AA711F7175983107DB7 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		82A4AE1F1A81BA244996E161 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		9A709ACBF6C3491DFFE272E2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		9AB4A5794CD974E927BAE09F /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		B2B0673A2B0BE663C38C076C /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
@@ -145,6 +149,7 @@
 			isa = PBXGroup;
 			children = (
 				9A709ACBF6C3491DFFE272E2 /* Info.plist */,
+				57676A81AD5CDAB13D36633F /* PrivacyInfo.xcprivacy */,
 				FE917D3308F3E7FE37469E60 /* Share.entitlements */,
 				9AB4A5794CD974E927BAE09F /* ShareViewController.swift */,
 			);
@@ -191,6 +196,7 @@
 				D5A27FEADB0FD643CE3EDCE2 /* 3DVault.entitlements */,
 				81361AA711F7175983107DB7 /* AppState.swift */,
 				C023B7AD05B2D843A4A35BEE /* Info.plist */,
+				82A4AE1F1A81BA244996E161 /* PrivacyInfo.xcprivacy */,
 				E91D361DFB7ECE7B1ACC2FB1 /* VaultApp.swift */,
 				B2B1FA43B9BE5708E90E0036 /* Resources */,
 				EBB5462AA734013F00240AF8 /* Services */,
@@ -218,6 +224,7 @@
 			buildConfigurationList = 13BACD5FC2C35959E7820F90 /* Build configuration list for PBXNativeTarget "3DVaultShare" */;
 			buildPhases = (
 				237D45FB2D22D51C2AE86384 /* Sources */,
+				6A9201924E74DC6195E753F7 /* Resources */,
 				88D501D4A7A1545D581BBF09 /* Frameworks */,
 			);
 			buildRules = (
@@ -302,6 +309,15 @@
 			buildActionMask = 2147483647;
 			files = (
 				FB4AB474E294975AB4A42554 /* Assets.xcassets in Resources */,
+				D426E6BCB162A9725878F462 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6A9201924E74DC6195E753F7 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1C9E57E42A97DF8AF1D4A55 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

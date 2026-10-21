@@ -11,6 +11,7 @@
 		24F8AF416324F9F677348231 /* VaultApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 948E3ED56F896BD89F1F509C /* VaultApp.swift */; };
 		25F6074EF77A0237A38C8ADA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F63D310C4D0A5352C0DFB33F /* Assets.xcassets */; };
 		269B7B84411218AD14940FF2 /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EE923774F35A888E066052E /* MainView.swift */; };
+		38E8FBA4D722CD10A072A6FB /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 8C280F7D88CB3EE8006EF610 /* PrivacyInfo.xcprivacy */; };
 		48BA9D25782E21B49568A866 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C999D4D4B0D12C21ACFE8D6 /* SidebarView.swift */; };
 		493D779E48897C055A478D71 /* InboxWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE596EB27519E6AD2A533B78 /* InboxWatcher.swift */; };
 		4C3D216C494543FBD6356881 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0912C6F1675BCDBB6CA0FD46 /* LoginView.swift */; };
@@ -42,6 +43,7 @@
 		625C28C9E7D38698D65B3B33 /* 3DVault.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = 3DVault.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		77C8390BCD1C1CE23521A7BC /* MeshPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeshPreview.swift; sourceTree = "<group>"; };
 		89BF6E89B76AE01081F9FE95 /* Organise.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Organise.swift; sourceTree = "<group>"; };
+		8C280F7D88CB3EE8006EF610 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		948E3ED56F896BD89F1F509C /* VaultApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultApp.swift; sourceTree = "<group>"; };
 		A56300FB294D3BBFEEEB3A68 /* UploadSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadSheet.swift; sourceTree = "<group>"; };
 		B2F12D9648FE4FE00AC4C0FE /* ThumbnailLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailLoader.swift; sourceTree = "<group>"; };
@@ -50,6 +52,7 @@
 		EE596EB27519E6AD2A533B78 /* InboxWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxWatcher.swift; sourceTree = "<group>"; };
 		F530899D0BBBDAC4948F9BEF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		F63D310C4D0A5352C0DFB33F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		FBD3C7290D8F2A8CDD61DD3C /* 3DVault.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = 3DVault.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -75,8 +78,10 @@
 		A4E5343342D34D32C40020DC /* App */ = {
 			isa = PBXGroup;
 			children = (
+				FBD3C7290D8F2A8CDD61DD3C /* 3DVault.entitlements */,
 				0289A7943FAA38494415B598 /* AppState.swift */,
 				F530899D0BBBDAC4948F9BEF /* Info.plist */,
+				8C280F7D88CB3EE8006EF610 /* PrivacyInfo.xcprivacy */,
 				948E3ED56F896BD89F1F509C /* VaultApp.swift */,
 				7506F65BE9F7F2E63F308740 /* Resources */,
 				EAC6D84ACAF75EE39D5868B0 /* Services */,
@@ -189,7 +194,7 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					61250C7DE7BAAB751DAD2BC7 = {
-						DevelopmentTeam = "";
+						DevelopmentTeam = J4UJD4Z33J;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -222,6 +227,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				25F6074EF77A0237A38C8ADA /* Assets.xcassets in Resources */,
+				38E8FBA4D722CD10A072A6FB /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -291,7 +297,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = J4UJD4Z33J;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -325,6 +331,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/3DVault.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -376,7 +383,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = J4UJD4Z33J;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -403,6 +410,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/3DVault.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;

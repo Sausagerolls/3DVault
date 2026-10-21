@@ -72,9 +72,10 @@ cd web && npm install && npm run dev    # http://localhost:5173, proxies /api to
 
 ## Apps
 
-- **Mac** (`mac/`, macOS 14+): browse, preview, open files in your slicer, keep models offline, drag-and-drop uploads, and a watched `~/3DVault/Inbox`. See [mac/README.md](mac/README.md).
+- **Mac** (`mac/`, macOS 14+): browse, preview, open files in your slicer, keep models offline, drag-and-drop uploads, and a watched Inbox folder. See [mac/README.md](mac/README.md).
 - **iPhone and iPad** (`ios/`, iOS 26+): browse, 3D preview, organise, share or AirDrop files to your Mac, upload from Files or the Share sheet, add print photos, keep models offline. See [ios/README.md](ios/README.md).
 - Both use the `VaultKit` Swift package for the API client and 3D previews.
+- Releasing to the App Store: see [appstore/README.md](appstore/README.md). Privacy policy: [PRIVACY.md](PRIVACY.md).
 
 ## License
 

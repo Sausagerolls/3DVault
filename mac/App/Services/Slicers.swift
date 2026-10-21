@@ -20,13 +20,9 @@ struct Slicer: Identifiable, Hashable {
         for id in bundleIds {
             if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) { return url }
         }
-        let dirs = [URL(filePath: "/Applications"), FileManager.default.homeDirectoryForCurrentUser.appending(path: "Applications")]
-        for dir in dirs {
-            for name in appNames where FileManager.default.fileExists(atPath: dir.appending(path: name).path) {
-                return dir.appending(path: name)
-            }
-        }
-        return nil
+        // Fallback for copies Launch Services has not registered yet.
+        let dir = URL(filePath: "/Applications")
+        return appNames.map { dir.appending(path: $0) }.first { FileManager.default.fileExists(atPath: $0.path) }
     }
 
     static var installed: [Slicer] { all.filter { $0.appURL != nil } }

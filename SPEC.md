@@ -76,7 +76,7 @@ Thumbnails rendered server-side, headless (CPU/OSMesa), queued and throttled.
 - Open in slicer (Bambu Studio, OrcaSlicer, PrusaSlicer, Cura) — download to cache and launch.
 - Drag files out to Finder/slicer; drag-drop in (window + Dock icon) to upload.
 - Pinned models cached offline.
-- Watched local folder `~/3DVault/Inbox` → auto-upload.
+- Watched local folder (chosen in Settings, kept as a security-scoped bookmark) → auto-upload.
 - Shared Swift package for API client/models to reuse on iOS.
 
 ## iOS / iPadOS app (phase 3)

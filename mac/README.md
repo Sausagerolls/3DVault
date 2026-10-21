@@ -9,7 +9,7 @@ Native SwiftUI client for the 3DVault server. Requires macOS 14 or later.
 - **Open in slicer:** double-click a model, or use the button or context menu. Supports Bambu Studio, OrcaSlicer, PrusaSlicer and UltiMaker Cura. Slicer projects open as they are; otherwise every mesh in the model opens together.
 - **Drag out:** drag a model card or a file row to Finder, the Desktop or a slicer window. It downloads when you drop it.
 - **Upload:** drop files or folders on the window or the Dock icon, use File → Upload Files… (⌘U), or right-click files in Finder and choose Open With → 3DVault. You review the grouping before anything is saved.
-- **Inbox folder:** anything saved to `~/3DVault/Inbox` is uploaded automatically. Afterwards it moves to `Inbox/Imported/<date>`; nothing is deleted.
+- **Inbox folder:** choose a folder in Settings and anything saved to it is uploaded automatically. Afterwards it moves to `Imported/<date>` inside that folder; nothing is deleted.
 - **Keep on this Mac:** pin models for offline use. Pinned models stay viewable and openable in a slicer when the server is unreachable.
 - **Edit:** name, category, tags, print status, rating, favourite, notes, problem flags, extra files and print photos. Bulk edit several models from the side panel or the context menu.
 

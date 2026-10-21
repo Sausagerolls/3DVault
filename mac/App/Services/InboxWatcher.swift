@@ -1,9 +1,10 @@
-import Foundation
+import AppKit
 import UserNotifications
 import VaultKit
 
-/// Uploads anything saved into ~/3DVault/Inbox. Imported items move to Inbox/Imported,
-/// so nothing is ever deleted.
+/// Uploads anything saved into the Inbox folder. Imported items move to Inbox/Imported,
+/// so nothing is ever deleted. The sandbox only allows a folder the user picked, so the
+/// folder is kept as a security-scoped bookmark.
 @MainActor
 final class InboxWatcher {
     static let enabledKey = "inboxEnabled"
@@ -11,18 +12,47 @@ final class InboxWatcher {
         get { UserDefaults.standard.object(forKey: enabledKey) as? Bool ?? true }
         set { UserDefaults.standard.set(newValue, forKey: enabledKey) }
     }
-    static let folder = FileManager.default.homeDirectoryForCurrentUser.appending(path: "3DVault/Inbox")
+    static let bookmarkKey = "inboxBookmark"
     static let importedName = "Imported"
+    private(set) static var folder: URL? = resolveBookmark()
+
+    private static func resolveBookmark() -> URL? {
+        guard let data = UserDefaults.standard.data(forKey: bookmarkKey) else { return nil }
+        var stale = false
+        guard let url = try? URL(resolvingBookmarkData: data, options: .withSecurityScope, bookmarkDataIsStale: &stale) else { return nil }
+        if stale, let fresh = try? url.bookmarkData(options: .withSecurityScope) {
+            UserDefaults.standard.set(fresh, forKey: bookmarkKey)
+        }
+        return url
+    }
+
+    /// Asks for the Inbox folder. Returns false if the user cancels.
+    @discardableResult
+    static func chooseFolder() -> Bool {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.prompt = "Use as Inbox"
+        panel.message = "Choose a folder. Anything saved into it is uploaded to your library."
+        guard panel.runModal() == .OK, let url = panel.url,
+              let data = try? url.bookmarkData(options: .withSecurityScope) else { return false }
+        UserDefaults.standard.set(data, forKey: bookmarkKey)
+        folder = url
+        return true
+    }
 
     weak var state: AppState?
     private var timer: Timer?
+    private var accessing: URL?
     private var seen: [String: (Int, Date)] = [:]
     private var busy = false
     private(set) var lastImport: String?
 
     func start() {
-        try? FileManager.default.createDirectory(at: Self.folder, withIntermediateDirectories: true)
-        timer?.invalidate()
+        stop()
+        guard let folder = Self.folder else { return }
+        if folder.startAccessingSecurityScopedResource() { accessing = folder }
         timer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.scan() }
         }
@@ -32,6 +62,9 @@ final class InboxWatcher {
     func stop() {
         timer?.invalidate()
         timer = nil
+        accessing?.stopAccessingSecurityScopedResource()
+        accessing = nil
+        seen = [:]
     }
 
     private func signature(_ url: URL) -> (Int, Date) {
@@ -50,8 +83,8 @@ final class InboxWatcher {
     }
 
     func scan() async {
-        guard !busy, let state, let client = state.client, !state.offline else { return }
-        let entries = ((try? FileManager.default.contentsOfDirectory(at: Self.folder, includingPropertiesForKeys: nil)) ?? [])
+        guard !busy, let folder = Self.folder, let state, let client = state.client, !state.offline else { return }
+        let entries = ((try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? [])
             .filter { !$0.lastPathComponent.hasPrefix(".") && $0.lastPathComponent != Self.importedName }
         // Only take entries that are unchanged since the last scan and at least 5 s old.
         var ready: [URL] = []
@@ -75,7 +108,7 @@ final class InboxWatcher {
             }
             let groups = latest.groups.map { CommitGroup(name: $0.name, fileIds: $0.fileIds) }
             let ids = try await client.commitBatch(batch.id, groups: groups)
-            let dest = Self.folder.appending(path: "\(Self.importedName)/\(Date().formatted(.iso8601.year().month().day()))")
+            let dest = folder.appending(path: "\(Self.importedName)/\(Date().formatted(.iso8601.year().month().day()))")
             try FileManager.default.createDirectory(at: dest, withIntermediateDirectories: true)
             for e in ready {
                 var target = dest.appending(path: e.lastPathComponent)

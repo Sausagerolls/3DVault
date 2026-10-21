@@ -34,6 +34,9 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: 3DVault
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
         UIApplicationSupportsIndirectInputEvents: true
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
@@ -78,6 +81,8 @@ targets:
       path: Share/Info.plist
       properties:
         CFBundleDisplayName: 3DVault
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         KeychainGroup: "$(AppIdentifierPrefix)com.3dvault.shared"
         AppGroup: group.com.3dvault.shared
         NSAppTransportSecurity:
