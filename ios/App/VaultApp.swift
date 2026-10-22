@@ -4,11 +4,13 @@ import VaultKit
 @main
 struct VaultApp: App {
     @State private var state = AppState()
+    @AppStorage(Appearance.key) private var appearance = Appearance.system
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(state)
+                .preferredColorScheme(appearance.colorScheme)
                 // "Open in 3DVault" from Files or another app.
                 .onOpenURL { url in
                     guard url.isFileURL, state.client != nil else { return }

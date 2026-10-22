@@ -6,6 +6,30 @@ struct SidebarView: View {
     @Binding var section: LibrarySection?
     @AppStorage("sidebar.collections") private var showCollections = true
     @AppStorage("sidebar.categories") private var showCategories = true
+    @AppStorage("sidebar.collapsedCategories") private var collapsedRaw = ""
+
+    private var collapsed: Set<Int> { Set(collapsedRaw.split(separator: ",").compactMap { Int($0) }) }
+
+    private func toggleCollapsed(_ id: Int) {
+        var s = collapsed
+        if s.contains(id) { s.remove(id) } else { s.insert(id) }
+        collapsedRaw = s.sorted().map(String.init).joined(separator: ",")
+    }
+
+    private func disclosure(_ item: (category: VaultKit.Category, depth: Int, hasChildren: Bool)) -> some View {
+        Button { withAnimation { toggleCollapsed(item.category.id) } } label: {
+            Image(systemName: "chevron.right")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .rotationEffect(.degrees(collapsed.contains(item.category.id) ? 0 : 90))
+                .frame(width: 14, height: 14)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .opacity(item.hasChildren ? 1 : 0)
+        .disabled(!item.hasChildren)
+        .accessibilityLabel(collapsed.contains(item.category.id) ? "Expand" : "Collapse")
+    }
     @AppStorage("sidebar.tags") private var showTags = false
     @State private var showSettings = false
 
@@ -41,16 +65,26 @@ struct SidebarView: View {
                 }
             }
 
-            Section("Categories", isExpanded: $showCategories) {
-                ForEach(state.categoryTree, id: \.category.id) { item in
-                    row(item.category.name, "folder", item.category.count)
+            Section(isExpanded: $showCategories) {
+                ForEach(state.sidebarCategoryRows(collapsed: collapsed), id: \.category.id) { item in
+                    HStack(spacing: 4) {
+                        disclosure(item)
+                        Label(item.category.name, systemImage: "folder")
+                    }
+                        .badge(item.category.count)
                         .padding(.leading, CGFloat(item.depth) * 16)
                         .tag(LibrarySection.category(item.category.id))
                         .contextMenu { menu(for: .category(item.category.id)) }
+                        .draggable(CategoryDrag.payload(item.category.id)) { Label(item.category.name, systemImage: "folder").padding(8) }
+                        .categoryDropTarget(item.category.id)
                 }
                 if !state.offline {
                     newRow("New Category") { state.newCategory { section = .category($0) } }
                 }
+            } header: {
+                Text("Categories")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .categoryDropTarget(nil)
             }
 
             Section("Tags", isExpanded: $showTags) {
@@ -133,6 +167,9 @@ struct SidebarView: View {
                 if let c = state.categories.first(where: { $0.id == id }) {
                     Button { state.newCategory(parent: c) { section = .category($0) } } label: { Label("New Subcategory…", systemImage: "folder.badge.plus") }
                     Button { state.renameCategory(c) } label: { Label("Rename…", systemImage: "pencil") }
+                    if c.parentId != nil {
+                        Button { state.moveCategory(c.id, to: nil) } label: { Label("Move to Top Level", systemImage: "arrow.up.to.line") }
+                    }
                     Button(role: .destructive) { state.deleteCategory(c) { leave(.category(id)) } } label: { Label("Delete…", systemImage: "trash") }
                 }
             case .collection(let id):

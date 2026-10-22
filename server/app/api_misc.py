@@ -72,6 +72,9 @@ def patch_category(cat_id: int, body: CategoryIn, db: Session = Depends(get_db),
         if p.id == c.id:
             raise HTTPException(400, "Cannot move a category inside itself")
         p = p.parent
+    clash = db.query(Category).filter(Category.name == body.name.strip(), Category.parent_id == body.parent_id, Category.id != c.id).first()
+    if clash:
+        raise HTTPException(409, "A category with that name already exists there")
     c.name, c.parent_id, c.sort = body.name.strip(), body.parent_id, body.sort
     db.commit()
     for m in db.query(Model).filter(Model.deleted_at.is_(None), Model.category_id.isnot(None)):

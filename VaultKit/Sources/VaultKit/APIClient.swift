@@ -147,6 +147,9 @@ public final class APIClient: Sendable {
         _ = try await send("flags/\(flagId)", method: "PATCH", query: [.init(name: "resolved", value: String(resolved))])
     }
 
+    /// Removes the file from its model and from disk. Admins and the model's uploader only.
+    public func deleteFile(_ id: Int) async throws { _ = try await send("files/\(id)", method: "DELETE") }
+
     // MARK: taxonomy
 
     public func categories() async throws -> [Category] { try await get("categories") }

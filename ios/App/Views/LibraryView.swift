@@ -66,7 +66,8 @@ struct LibraryView: View {
                                 selection = []
                             }
                         } preview: {
-                            CardPreview(model: m)
+                            // The preview is hosted outside this view tree, so it doesn't inherit AppState.
+                            CardPreview(model: m).environment(state)
                         }
                         .onAppear {
                             if m.id == library.items.last?.id { Task { await library.loadMore(state: state) } }
@@ -182,6 +183,9 @@ struct LibraryView: View {
                         Divider()
                         Button { state.newCollection() } label: { Label("New Collection…", systemImage: "rectangle.stack.badge.plus") }
                         Button { state.newCategory() } label: { Label("New Category…", systemImage: "folder.badge.plus") }
+                        if case .category(let id) = section, let c = state.categories.first(where: { $0.id == id }) {
+                            Button { state.newCategory(parent: c) } label: { Label("New Subcategory in \(c.name)…", systemImage: "folder.badge.plus") }
+                        }
                     } label: {
                         Label("Add", systemImage: "plus")
                     } primaryAction: {

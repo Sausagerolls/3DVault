@@ -6,6 +6,30 @@ struct SidebarView: View {
     @Binding var section: LibrarySection?
     @AppStorage("sidebar.collections") private var showCollections = true
     @AppStorage("sidebar.categories") private var showCategories = true
+    @AppStorage("sidebar.collapsedCategories") private var collapsedRaw = ""
+
+    private var collapsed: Set<Int> { Set(collapsedRaw.split(separator: ",").compactMap { Int($0) }) }
+
+    private func toggleCollapsed(_ id: Int) {
+        var s = collapsed
+        if s.contains(id) { s.remove(id) } else { s.insert(id) }
+        collapsedRaw = s.sorted().map(String.init).joined(separator: ",")
+    }
+
+    private func disclosure(_ item: (category: VaultKit.Category, depth: Int, hasChildren: Bool)) -> some View {
+        Button { withAnimation { toggleCollapsed(item.category.id) } } label: {
+            Image(systemName: "chevron.right")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .rotationEffect(.degrees(collapsed.contains(item.category.id) ? 0 : 90))
+                .frame(width: 14, height: 14)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .opacity(item.hasChildren ? 1 : 0)
+        .disabled(!item.hasChildren)
+        .accessibilityLabel(collapsed.contains(item.category.id) ? "Expand" : "Collapse")
+    }
     @AppStorage("sidebar.tags") private var showTags = false
 
     var body: some View {
@@ -48,17 +72,27 @@ struct SidebarView: View {
                 }
             }
 
-            Section("Categories", isExpanded: $showCategories) {
-                ForEach(state.categoryTree, id: \.category.id) { item in
-                    Label(item.category.name, systemImage: "folder")
+            Section(isExpanded: $showCategories) {
+                ForEach(state.sidebarCategoryRows(collapsed: collapsed), id: \.category.id) { item in
+                    HStack(spacing: 2) {
+                        disclosure(item)
+                        Label(item.category.name, systemImage: "folder")
+                    }
                         .padding(.leading, CGFloat(item.depth) * 14)
                         .badge(item.category.count)
                         .tag(LibrarySection.category(item.category.id))
                         .contextMenu { menu(for: .category(item.category.id)) }
+                        .draggable(CategoryDrag.payload(item.category.id)) { Label(item.category.name, systemImage: "folder") }
+                        .categoryDropTarget(item.category.id)
                 }
                 if !state.offline {
                     newRow("New Category…") { state.newCategory { section = .category($0) } }
                 }
+            } header: {
+                Text("Categories")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .categoryDropTarget(nil)
+                    .help("Drag a category here to move it to the top level")
             }
 
             Section("Tags", isExpanded: $showTags) {
@@ -130,6 +164,9 @@ struct SidebarView: View {
                 if let c = state.categories.first(where: { $0.id == id }) {
                     Button("New Subcategory…") { state.newCategory(parent: c) { section = .category($0) } }
                     Button("Rename…") { state.renameCategory(c) }
+                    if c.parentId != nil {
+                        Button("Move to Top Level") { state.moveCategory(c.id, to: nil) }
+                    }
                     Divider()
                     Button("Delete…", role: .destructive) { state.deleteCategory(c) { leave(.category(id)) } }
                 }
@@ -164,6 +201,9 @@ struct SidebarView: View {
                     Menu {
                         Button("New Collection…") { state.newCollection { section = .collection($0) } }
                         Button("New Category…") { state.newCategory { section = .category($0) } }
+                        if case .category(let id) = section, let c = state.categories.first(where: { $0.id == id }) {
+                            Button("New Subcategory in \(c.name)…") { state.newCategory(parent: c) { section = .category($0) } }
+                        }
                     } label: {
                         Image(systemName: "plus")
                     }
@@ -202,5 +242,8 @@ struct SidebarView: View {
                 .padding(10)
             }
         }
+        // Opaque backing so sidebar rows scrolling underneath don't show through.
+        .background(.bar)
+        .overlay(alignment: .top) { Divider() }
     }
 }

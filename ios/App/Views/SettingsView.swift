@@ -6,6 +6,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var cacheSize = 0
     @State private var confirmSignOut = false
+    @AppStorage(Appearance.key) private var appearance = Appearance.system
 
     var body: some View {
         NavigationStack {
@@ -22,6 +23,12 @@ struct SettingsView: View {
                             Link(destination: url) { Label("Open Web Library", systemImage: "safari") }
                         }
                     }
+                }
+                Section("Appearance") {
+                    Picker("Appearance", selection: $appearance) {
+                        ForEach(Appearance.allCases) { Text($0.label).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
                 }
                 if let s = state.stats {
                     Section("Library") {

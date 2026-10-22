@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { FLAG_LABELS, STATUS_LABELS, api, type Collection, type Printer, type User } from "../api";
-import { buildTree, Icon, useCategories, useTags, type CatNode } from "./ui";
+import { FLAG_LABELS, STATUS_LABELS, api, type Category, type Collection, type Printer, type User } from "../api";
+import { buildTree, Icon, useCategories, useTags, useToast, type CatNode } from "./ui";
 
 export type Filters = Record<string, string | string[]>;
 
@@ -29,6 +29,33 @@ export function Sidebar({ filters, locked, set, toggleIn, open }: Props) {
     queryKey: ["uncat-count"],
     queryFn: () => api<{ total: number }>("/models?category_id=-1&page_size=1"),
   });
+  const qc = useQueryClient();
+  const toast = useToast();
+  // The category being dragged. dragover events can't read the payload, so keep it here.
+  const [dragging, setDragging] = useState<number | null>(null);
+  const [dropTop, setDropTop] = useState(false);
+
+  // True when target is the category itself or one of its descendants.
+  const inside = (id: number, target: number | null) => {
+    for (let t = target; t != null; t = cats.find((c) => c.id === t)?.parent_id ?? null) if (t === id) return true;
+    return false;
+  };
+  const canDrop = (target: number | null) =>
+    dragging != null && !inside(dragging, target) && cats.find((c) => c.id === dragging)?.parent_id !== target;
+  const move = async (target: number | null) => {
+    const c = cats.find((x) => x.id === dragging);
+    setDragging(null);
+    if (!c || !canDrop(target)) return;
+    try {
+      await api<Category>(`/categories/${c.id}`, { method: "PATCH", json: { name: c.name, parent_id: target } });
+      qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: ["models"] });
+    } catch (e) {
+      toast((e as Error).message, true);
+    }
+  };
+  const drag: CatDrag = { dragging, setDragging, canDrop, move };
+
   const [tagQuery, setTagQuery] = useState("");
   const [showAllTags, setShowAllTags] = useState(false);
   const shownTags = tags.filter((t) => t.name.includes(tagQuery.toLowerCase()));
@@ -71,10 +98,26 @@ export function Sidebar({ filters, locked, set, toggleIn, open }: Props) {
       )}
 
       <section>
-        <h3>Categories</h3>
+        <h3
+          className={dropTop ? "drop" : ""}
+          title="Drag a category here to move it to the top level"
+          onDragOver={(e) => {
+            if (!canDrop(null)) return;
+            e.preventDefault();
+            setDropTop(true);
+          }}
+          onDragLeave={() => setDropTop(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDropTop(false);
+            move(null);
+          }}
+        >
+          Categories
+        </h3>
         {facet(!filters.category_id, () => set("category_id", null), "All")}
         {tree.map((n) => (
-          <CatRow key={n.id} node={n} selected={filters.category_id as string} onPick={(id) => set("category_id", id)} />
+          <CatRow key={n.id} node={n} selected={filters.category_id as string} onPick={(id) => set("category_id", id)} drag={drag} />
         ))}
         {facet(filters.category_id === "-1", () => set("category_id", filters.category_id === "-1" ? null : "-1"), <i>Uncategorised</i>, uncategorised.data?.total)}
       </section>
@@ -178,12 +221,43 @@ export function Sidebar({ filters, locked, set, toggleIn, open }: Props) {
   );
 }
 
-function CatRow({ node, selected, onPick }: { node: CatNode; selected: string; onPick: (id: string | null) => void }) {
+type CatDrag = {
+  dragging: number | null;
+  setDragging: (id: number | null) => void;
+  canDrop: (target: number | null) => boolean;
+  move: (target: number | null) => void;
+};
+
+function CatRow({ node, selected, onPick, drag }: { node: CatNode; selected: string; onPick: (id: string | null) => void; drag: CatDrag }) {
   const [open, setOpen] = useState(node.depth === 0 && node.children.length < 8);
+  const [over, setOver] = useState(false);
   const on = selected === String(node.id);
   return (
     <>
-      <div className={`facet ${on ? "on" : ""}`} style={{ paddingLeft: 6 + node.depth * 14 }} onClick={() => onPick(on ? null : String(node.id))}>
+      <div
+        className={`facet ${on ? "on" : ""} ${over ? "drop" : ""} ${drag.dragging === node.id ? "dragging" : ""}`}
+        style={{ paddingLeft: 6 + node.depth * 14 }}
+        onClick={() => onPick(on ? null : String(node.id))}
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", node.name);
+          drag.setDragging(node.id);
+        }}
+        onDragEnd={() => drag.setDragging(null)}
+        onDragOver={(e) => {
+          if (!drag.canDrop(node.id)) return;
+          e.preventDefault();
+          setOver(true);
+        }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setOver(false);
+          setOpen(true);
+          drag.move(node.id);
+        }}
+      >
         <span
           className="twisty"
           onClick={(e) => {
@@ -196,7 +270,7 @@ function CatRow({ node, selected, onPick }: { node: CatNode; selected: string; o
         <span className="ellipsis">{node.name}</span>
         <span className="count">{node.total}</span>
       </div>
-      {open && node.children.map((c) => <CatRow key={c.id} node={c} selected={selected} onPick={onPick} />)}
+      {open && node.children.map((c) => <CatRow key={c.id} node={c} selected={selected} onPick={onPick} drag={drag} />)}
     </>
   );
 }

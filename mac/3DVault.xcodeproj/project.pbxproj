@@ -19,8 +19,10 @@
 		68134DE100F1B7E9E0F88617 /* FileCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2BE1B7F71AD195AEEA502A5 /* FileCache.swift */; };
 		7331A90345FC89C32D4CC886 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0289A7943FAA38494415B598 /* AppState.swift */; };
 		76398EA5EFF997F498E1D028 /* DetailPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07A68E1C0DFB2FF822DE702E /* DetailPane.swift */; };
+		7C09183B301BF0F3436539B1 /* CategoryDrag.swift in Sources */ = {isa = PBXBuildFile; fileRef = B87A49572AD7450D8A78DA51 /* CategoryDrag.swift */; };
 		80815EEE45F2318E9D0203AF /* Slicers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EF43832446B088F7AA6881A /* Slicers.swift */; };
 		85210F1F985B54806121DA0E /* MeshPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77C8390BCD1C1CE23521A7BC /* MeshPreview.swift */; };
+		8F573D69D216470DC1C899C6 /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D60CA267CD677F439FA6023 /* Appearance.swift */; };
 		963A0EF2E5DD4540F859900F /* LibraryGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5819E11BEB735253FD30E3E6 /* LibraryGrid.swift */; };
 		A119A581D80F6FD07AC6626B /* UploadSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A56300FB294D3BBFEEEB3A68 /* UploadSheet.swift */; };
 		BD8993BB673F04E12C9042EC /* ThumbnailLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2F12D9648FE4FE00AC4C0FE /* ThumbnailLoader.swift */; };
@@ -41,12 +43,14 @@
 		517E0F04A3127AB9C44666D2 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		5819E11BEB735253FD30E3E6 /* LibraryGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryGrid.swift; sourceTree = "<group>"; };
 		625C28C9E7D38698D65B3B33 /* 3DVault.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = 3DVault.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6D60CA267CD677F439FA6023 /* Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Appearance.swift; sourceTree = "<group>"; };
 		77C8390BCD1C1CE23521A7BC /* MeshPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeshPreview.swift; sourceTree = "<group>"; };
 		89BF6E89B76AE01081F9FE95 /* Organise.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Organise.swift; sourceTree = "<group>"; };
 		8C280F7D88CB3EE8006EF610 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		948E3ED56F896BD89F1F509C /* VaultApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultApp.swift; sourceTree = "<group>"; };
 		A56300FB294D3BBFEEEB3A68 /* UploadSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadSheet.swift; sourceTree = "<group>"; };
 		B2F12D9648FE4FE00AC4C0FE /* ThumbnailLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailLoader.swift; sourceTree = "<group>"; };
+		B87A49572AD7450D8A78DA51 /* CategoryDrag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryDrag.swift; sourceTree = "<group>"; };
 		CDA52A65E0449A7E947BE85D /* VaultKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = VaultKit; path = ../VaultKit; sourceTree = SOURCE_ROOT; };
 		E2BE1B7F71AD195AEEA502A5 /* FileCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileCache.swift; sourceTree = "<group>"; };
 		EE596EB27519E6AD2A533B78 /* InboxWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxWatcher.swift; sourceTree = "<group>"; };
@@ -93,6 +97,8 @@
 		B2D8F205A20F92339D0378A4 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				6D60CA267CD677F439FA6023 /* Appearance.swift */,
+				B87A49572AD7450D8A78DA51 /* CategoryDrag.swift */,
 				89BF6E89B76AE01081F9FE95 /* Organise.swift */,
 			);
 			path = Shared;
@@ -239,6 +245,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				7331A90345FC89C32D4CC886 /* AppState.swift in Sources */,
+				8F573D69D216470DC1C899C6 /* Appearance.swift in Sources */,
+				7C09183B301BF0F3436539B1 /* CategoryDrag.swift in Sources */,
 				76398EA5EFF997F498E1D028 /* DetailPane.swift in Sources */,
 				68134DE100F1B7E9E0F88617 /* FileCache.swift in Sources */,
 				493D779E48897C055A478D71 /* InboxWatcher.swift in Sources */,

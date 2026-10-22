@@ -219,6 +219,8 @@ label.check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .facet:hover { background: var(--bg-sunken); color: var(--text); }
 .facet.on { background: var(--accent-soft); color: var(--accent); }
 .facet .count { margin-left: auto; font-size: 11px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.facet.drop, .sidebar h3.drop { background: var(--accent-soft); color: var(--accent); outline: 1px dashed var(--accent); outline-offset: -1px; }
+.facet.dragging { opacity: 0.5; }
 .facet .twisty { width: 14px; text-align: center; color: var(--text-faint); font-size: 10px; }
 .tagcloud { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 4px; }
 .tagcloud .chip { cursor: pointer; }

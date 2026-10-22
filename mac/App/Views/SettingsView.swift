@@ -7,6 +7,7 @@ struct SettingsView: View {
     @State private var inboxEnabled = InboxWatcher.enabled && InboxWatcher.folder != nil
     @State private var inboxFolder = InboxWatcher.folder
     @State private var cacheSize = 0
+    @AppStorage(Appearance.key) private var appearance = Appearance.system
 
     var body: some View {
         Form {
@@ -21,6 +22,13 @@ struct SettingsView: View {
                 } else {
                     Text("Not signed in").foregroundStyle(.secondary)
                 }
+            }
+
+            Section("Appearance") {
+                Picker("Appearance", selection: $appearance) {
+                    ForEach(Appearance.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented)
             }
 
             Section("Slicer") {

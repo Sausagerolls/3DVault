@@ -100,7 +100,40 @@ extension AppState {
         user?.isAdmin == true || user?.id == c.ownerId
     }
 
+    // MARK: files
+
+    /// Matches the web app: admins and the model's uploader can delete its files.
+    func canDeleteFiles(_ m: ModelDetail) -> Bool {
+        user?.isAdmin == true || (user != nil && user?.id == m.uploader?.id)
+    }
+
+    func deleteFile(_ f: VaultFile, then done: @escaping () async -> Void) {
+        guard let client else { return }
+        let name = (f.relPath as NSString).lastPathComponent
+        confirm = ConfirmPrompt(title: "Delete \(name)?",
+                                message: "The file is removed from the model and from the server. This can't be undone.",
+                                action: "Delete File") {
+            try await client.deleteFile(f.id)
+            await done()
+            self.changed()
+        }
+    }
+
     // MARK: categories
+
+    /// Sidebar category rows, leaving out the subcategories of collapsed categories.
+    func sidebarCategoryRows(collapsed: Set<Int>) -> [(category: VaultKit.Category, depth: Int, hasChildren: Bool)] {
+        let parents = Set(categories.compactMap(\.parentId))
+        var hiddenBelow: Int?  // depth of the collapsed category whose subtree is being skipped
+        return categoryTree.compactMap { item in
+            if let d = hiddenBelow {
+                if item.depth > d { return nil }
+                hiddenBelow = nil
+            }
+            if collapsed.contains(item.category.id) { hiddenBelow = item.depth }
+            return (item.category, item.depth, parents.contains(item.category.id))
+        }
+    }
 
     func newCategory(parent: VaultKit.Category? = nil, then open: ((Int) -> Void)? = nil) {
         guard let client else { return }

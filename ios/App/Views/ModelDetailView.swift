@@ -335,6 +335,9 @@ struct ModelDetailView: View {
                                         if !readOnly {
                                             Button { patch(["cover_file_id": .number(Double(f.id))]) } label: { Label("Use as Cover", systemImage: "photo") }
                                         }
+                                        if !readOnly && state.canDeleteFiles(m) {
+                                            Button(role: .destructive) { state.deleteFile(f) { await load() } } label: { Label("Delete…", systemImage: "trash") }
+                                        }
                                     }
                             }
                         }
@@ -395,6 +398,9 @@ struct ModelDetailView: View {
                     if f.hasThumb && !readOnly {
                         Button { patch(["cover_file_id": .number(Double(f.id))]) } label: { Label("Use as Cover", systemImage: "photo") }
                     }
+                    if !readOnly && state.canDeleteFiles(m) {
+                        Button(role: .destructive) { state.deleteFile(f) { await load() } } label: { Label("Delete…", systemImage: "trash") }
+                    }
                 }
             }
             if !readOnly {
@@ -402,7 +408,7 @@ struct ModelDetailView: View {
                     .buttonStyle(.bordered)
                     .controlSize(.small)
             }
-            Text("Tap a file to view it. Touch and hold to share it.").font(.caption).foregroundStyle(.tertiary)
+            Text("Tap a file to view it. Touch and hold to share or delete it.").font(.caption).foregroundStyle(.tertiary)
         }
     }
 

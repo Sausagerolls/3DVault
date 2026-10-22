@@ -268,6 +268,10 @@ struct ModelDetailView: View {
                     if f.hasThumb && !readOnly {
                         Button("Use as Cover") { patch(["cover_file_id": .number(Double(f.id))]) }
                     }
+                    if !readOnly && state.canDeleteFiles(m) {
+                        Divider()
+                        Button("Delete…", role: .destructive) { state.deleteFile(f) { await load() } }
+                    }
                 }
             }
             if !readOnly {

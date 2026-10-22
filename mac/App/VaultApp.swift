@@ -19,11 +19,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 struct VaultApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var state = AppState()
+    @AppStorage(Appearance.key) private var appearance = Appearance.system
 
     var body: some Scene {
         Window("3DVault", id: "main") {
             RootView()
                 .environment(state)
+                .preferredColorScheme(appearance.colorScheme)
                 .onAppear { delegate.state = state }
                 .frame(minWidth: 900, minHeight: 560)
         }
@@ -48,6 +50,7 @@ struct VaultApp: App {
         Settings {
             SettingsView()
                 .environment(state)
+                .preferredColorScheme(appearance.colorScheme)
         }
     }
 
