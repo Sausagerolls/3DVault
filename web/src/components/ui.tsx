@@ -25,6 +25,7 @@ const paths: Record<string, string> = {
   wire: "M4 4h16v16H4zm2 2v4.6L10.6 6zm7.4 0L6 13.4v4.2L17.6 6zM18 9.2 9.2 18h4.2L18 13.4zm0 7L16.2 18H18z",
   refresh: "M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.2L13 11h7V4z",
   menu: "M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z",
+  printer: "M7 3h10v4H7zM5 8h14a2 2 0 0 1 2 2v6h-4v4H7v-4H3v-6a2 2 0 0 1 2-2zm4 7v3h6v-3zm8-4.5a1 1 0 1 0 0 2 1 1 0 0 0 0-2z",
   link: "M10.6 13.4a1 1 0 0 0 1.4 0l4-4a3 3 0 1 0-4.2-4.2l-1.2 1.2 1.4 1.4 1.2-1.2a1 1 0 1 1 1.4 1.4l-4 4a1 1 0 0 0 0 1.4zm2.8-2.8a1 1 0 0 0-1.4 0l-4 4a3 3 0 1 0 4.2 4.2l1.2-1.2-1.4-1.4-1.2 1.2a1 1 0 1 1-1.4-1.4l4-4a1 1 0 0 0 0-1.4z",
 };
 
@@ -205,7 +206,7 @@ export function Stars({ value, onChange }: { value: number | null; onChange: (v:
   );
 }
 
-export function Modal({ children, onClose }: { children: ReactNode; onClose: () => void }) {
+export function Modal({ children, onClose, wide }: { children: ReactNode; onClose: () => void; wide?: boolean }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -213,7 +214,7 @@ export function Modal({ children, onClose }: { children: ReactNode; onClose: () 
   }, [onClose]);
   return (
     <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal card">{children}</div>
+      <div className={`modal card ${wide ? "wide" : ""}`}>{children}</div>
     </div>
   );
 }

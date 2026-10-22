@@ -11,6 +11,12 @@ func printableFiles(_ m: ModelDetail) -> [VaultFile] {
     return sliced + rest
 }
 
+/// Which file the print sheet opens with; nil lets the sheet choose.
+struct PrintTarget: Identifiable {
+    let id = UUID()
+    let fileId: Int?
+}
+
 /// Choose what to print and where, slice it on the server if needed, preview the layers,
 /// map filament slots, then send or queue the print.
 struct PrintSheet: View {
@@ -88,7 +94,7 @@ struct PrintSheet: View {
                 }
             }
             .navigationTitle("Print \(model.name)")
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
@@ -435,7 +441,7 @@ struct PrintSheet: View {
                     slicedFileId = out
                     slicing = nil
                     autoMap()
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    successHaptic()
                     state.changed()
                     #if DEBUG
                     if ProcessInfo.processInfo.environment["VAULT_TEST_PRINT"] == "preview" { showPreview = true }
@@ -457,8 +463,10 @@ struct PrintSheet: View {
         Task {
             do {
                 let job = try await client.print(fileId: fileId, machineId: machineId, plate: plate, amsMapping: ams)
+                #if os(iOS)
                 if !willQueue { PushManager.shared.printStarted(job) }
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                #endif
+                successHaptic()
                 state.show(willQueue ? "Added to the \(job.machineName) queue" : "Sending to \(job.machineName)")
                 dismiss()
             } catch {
@@ -565,7 +573,7 @@ struct LayerPreview: View {
                 let i = Int(index)
                 Canvas { ctx, size in draw(ctx, size, s, i) }
                     .aspectRatio(1, contentMode: .fit)
-                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+                    .background(Color.canvasBackground, in: RoundedRectangle(cornerRadius: 12))
                 HStack {
                     Text("Layer \(i + 1) of \(s.layers)")
                     Spacer()

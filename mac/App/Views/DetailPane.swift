@@ -32,6 +32,7 @@ struct ModelDetailView: View {
     @State private var flagKind: FlagKind = .brokenMesh
     @State private var flagNote = ""
     @State private var showFlag = false
+    @State private var printing: PrintTarget?
 
     private var readOnly: Bool { state.offline }
 
@@ -46,6 +47,12 @@ struct ModelDetailView: View {
             }
         }
         .task { await load() }
+        .sheet(item: $printing) { t in
+            if let m = model {
+                PrintSheet(model: m, initialFile: m.files.first { $0.id == t.fileId })
+                    .frame(minWidth: 520, idealWidth: 560, minHeight: 620, idealHeight: 720)
+            }
+        }
         .task(id: model?.files.contains { $0.status == "pending" }) {
             // Poll while the server is still generating previews.
             while model?.files.contains(where: { $0.status == "pending" }) == true, !Task.isCancelled {
@@ -174,6 +181,11 @@ struct ModelDetailView: View {
 
     private func actions(_ m: ModelDetail) -> some View {
         HStack {
+            if !readOnly && !printableFiles(m).isEmpty {
+                Button { printing = PrintTarget(fileId: nil) } label: { Label("Print…", systemImage: "printer.fill") }
+                    .buttonStyle(.borderedProminent)
+                    .help("Send to a printer, slicing on the server if needed")
+            }
             if let preferred = Slicer.preferred {
                 Button {
                     Task { await ModelActions.openInSlicer([m.id], slicer: preferred, state: state) }
@@ -267,6 +279,9 @@ struct ModelDetailView: View {
                     }
                     if f.hasThumb && !readOnly {
                         Button("Use as Cover") { patch(["cover_file_id": .number(Double(f.id))]) }
+                    }
+                    if !readOnly && printableFiles(m).contains(where: { $0.id == f.id }) {
+                        Button("Print…") { printing = PrintTarget(fileId: f.id) }
                     }
                     if !readOnly && state.canDeleteFiles(m) {
                         Divider()

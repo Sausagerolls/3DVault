@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { PrintersPage } from "./components/Printing";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type User } from "./api";
@@ -142,6 +143,10 @@ function Shell() {
             <span className="label">Untriaged</span>
             {!!stats.data?.untriaged && <span className="badge">{stats.data.untriaged}</span>}
           </NavLink>
+          <NavLink to="/printers">
+            <Icon name="printer" />
+            <span className="label">Printers</span>
+          </NavLink>
           <NavLink to="/upload">
             <Icon name="upload" />
             <span className="label">Upload</span>
@@ -166,6 +171,7 @@ function Shell() {
           <Route path="/trash" element={<Library preset={{ trashed: "true" }} title="Trash" />} />
           <Route path="/models/:id" element={<ModelPage />} />
           <Route path="/upload" element={<Upload />} />
+          <Route path="/printers" element={<PrintersPage />} />
           <Route path="/settings/*" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>

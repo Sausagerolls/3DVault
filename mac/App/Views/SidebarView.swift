@@ -46,6 +46,7 @@ struct SidebarView: View {
                 Label("On this Mac", systemImage: "pin")
                     .badge(state.pins.pinned.count)
                     .tag(LibrarySection.pinned)
+                Label("Printers", systemImage: "printer").tag(LibrarySection.printers)
             }
 
             if !pinnedRows.isEmpty {

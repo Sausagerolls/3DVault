@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from .auth import current_user, require_admin
 from .db import get_db
-from .drivers import DRIVERS, DriverError
+from .drivers import DRIVERS, DriverError, Status
 from .formats import print_format, sliced_3mf_info
 from .library import file_path
 from . import services, slicer, toolpaths
@@ -56,7 +56,7 @@ def _machine_out(db: Session, m: Machine) -> dict:
         "slicer_printer": m.slicer_printer,
         "has_camera": bool(driver and driver.has_camera),
         "formats": sorted(driver.formats) if driver else [],
-        "status": s.as_dict() if s else {"state": "offline", "message": "Disabled"},
+        "status": (s or Status(state="offline", message="Disabled")).as_dict(),
         "active_job": _job_out(active) if active else None,
         "queued": queued,
     }

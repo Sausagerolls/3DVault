@@ -140,7 +140,7 @@ private struct PrinterCard: View {
             .buttonStyle(.plain)
         }
         .padding(16)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+        .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: 16))
         .confirmationDialog("Stop this print?", isPresented: $confirmCancel, titleVisibility: .visible) {
             Button("Stop Print", role: .destructive) { control("cancel") }
         } message: {
@@ -170,7 +170,7 @@ private struct PrinterCard: View {
         Task {
             do {
                 try await op(client)
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                successHaptic()
             } catch {
                 state.report(error)
             }
@@ -223,12 +223,12 @@ struct StateBadge: View {
 private struct CameraView: View {
     @Environment(AppState.self) private var state
     let machineId: Int
-    @State private var image: UIImage?
+    @State private var image: PlatformImage?
 
     var body: some View {
         Group {
             if let image {
-                Image(uiImage: image).resizable().aspectRatio(contentMode: .fit)
+                Image(platformImage: image).resizable().aspectRatio(contentMode: .fit)
             } else {
                 Color.black.opacity(0.08).aspectRatio(16 / 9, contentMode: .fit)
                     .overlay { ProgressView() }
@@ -238,7 +238,7 @@ private struct CameraView: View {
         .task {
             while !Task.isCancelled {
                 if let client = state.client, let data = try? await client.data(from: client.cameraURL(machine: machineId)),
-                   let img = UIImage(data: data) {
+                   let img = PlatformImage(data: data) {
                     image = img
                 }
                 try? await Task.sleep(for: .seconds(3))

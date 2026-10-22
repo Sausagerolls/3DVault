@@ -65,6 +65,37 @@ export type Page<T> = { items: T[]; total: number; page: number; page_size: numb
 export type Category = { id: number; name: string; parent_id: number | null; count: number };
 export type Tag = { id: number; name: string; count: number | null };
 export type MachineKind = { kind: string; label: string; formats: string[]; has_camera: boolean; fields: { key: string; label: string; secret: boolean }[] };
+export type PrinterStatus = {
+  state: "offline" | "idle" | "preparing" | "printing" | "paused" | "finished" | "failed";
+  progress: number;
+  layer: number | null;
+  total_layers: number | null;
+  remaining_s: number | null;
+  file: string;
+  nozzle: { temp: number | null; target: number | null };
+  bed: { temp: number | null; target: number | null };
+  ams: { unit: number; slot: number; type: string; color: string; remaining: number | null }[];
+  message: string;
+};
+export type PrintJob = {
+  id: number;
+  machine_id: number;
+  machine_name: string;
+  model_id: number | null;
+  model_name: string;
+  file_id: number | null;
+  file_name: string;
+  plate: number;
+  user: string | null;
+  state: "queued" | "uploading" | "printing" | "paused" | "finished" | "failed" | "cancelled";
+  progress: number;
+  layer: number | null;
+  total_layers: number | null;
+  remaining_s: number | null;
+  error: string;
+  created_at: string;
+  finished_at: string | null;
+};
 export type Machine = {
   id: number;
   name: string;
@@ -73,12 +104,40 @@ export type Machine = {
   serial: string;
   has_secret: boolean;
   printer_id: number | null;
+  bed: { x: number; y: number; z: number } | null;
   enabled: boolean;
   needs_clear: boolean;
   slicer_printer: string;
-  status: { state: string; message?: string };
+  has_camera: boolean;
+  formats: string[];
+  status: PrinterStatus;
+  active_job: PrintJob | null;
   queued: number;
 };
+export type SlicedPlate = { index: number; time_s: number | null; weight_g: number | null; filaments: { id: number; type: string; color: string; used_g: number }[] };
+export type PrintInfo = {
+  file_id: number;
+  format: string | null;
+  sliceable: boolean;
+  plates: SlicedPlate[];
+  print_time: string | null;
+  filament_g: string | null;
+  machines: { id: number; name: string; compatible: boolean }[];
+};
+export type SlicerProfile = { name: string; vendor: string; user: boolean; type: string };
+export type SlicerOptions = {
+  printer: string;
+  processes: SlicerProfile[];
+  filaments: SlicerProfile[];
+  bed_types: string[];
+  default_process: string;
+  default_filament: string;
+  default_bed_type: string;
+  defaults: { layer_height: number | null; sparse_infill_density: number | null; wall_loops: number | null; enable_support: boolean; support_type: string; brim_type: string };
+};
+export type SliceTask = { id: number; state: "queued" | "slicing" | "done" | "failed"; error: string; output_file_id: number | null; ahead?: number };
+export type ToolpathSummary = { layers: number; z: number[]; bounds: [number, number, number, number] | null };
+export type ToolpathLayer = { index: number; z: number; paths: { f: number; p: number[] }[] };
 export type Printer = { id: number; name: string; x: number; y: number; z: number; builtin: boolean };
 export type Collection = {
   id: number;

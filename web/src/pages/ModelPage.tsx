@@ -21,6 +21,7 @@ import {
   type VaultFile,
 } from "../api";
 import { ModelViewer } from "../components/ModelViewer";
+import { JobList, PrintDialog, printableFiles } from "../components/Printing";
 import { CategorySelect, Icon, Stars, TagInput, useToast } from "../components/ui";
 import { useUser } from "../App";
 
@@ -42,6 +43,8 @@ export default function ModelPage() {
   const m = q.data;
   const [activeId, setActiveId] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
+  // File id the print dialog opens with; 0 lets it choose, null keeps it closed.
+  const [printing, setPrinting] = useState<number | null>(null);
 
   const visualFiles = useMemo(() => (m ? m.files.filter((f) => f.has_preview || f.has_thumb) : []), [m]);
   const active: VaultFile | null = useMemo(() => {
@@ -184,6 +187,11 @@ export default function ModelPage() {
             <h1 className="grow" style={{ overflowWrap: "anywhere" }}>
               {m.name}
             </h1>
+            {!m.deleted_at && printableFiles(m).length > 0 && (
+              <button className="primary" onClick={() => setPrinting(0)}>
+                <Icon name="printer" /> Print
+              </button>
+            )}
             <button className={`icon ${m.me.favourite ? "active" : ""}`} onClick={() => setMe({ favourite: !m.me.favourite })} title="Favourite">
               <Icon name="heart" className={m.me.favourite ? "fav" : ""} />
             </button>
@@ -198,6 +206,8 @@ export default function ModelPage() {
           )}
         </div>
 
+        {printing != null && <PrintDialog m={m} initialFile={printing || undefined} onClose={() => setPrinting(null)} />}
+
         <section className="panel col">
           <h3>My print status</h3>
           <div className="status-seg">
@@ -211,6 +221,11 @@ export default function ModelPage() {
             <span className="dim">My rating</span>
             <Stars value={m.me.rating} onChange={(rating) => setMe({ rating })} />
           </div>
+        </section>
+
+        <section className="panel col">
+          <h3>Prints</h3>
+          <JobList modelId={m.id} />
         </section>
 
         {editing ? (

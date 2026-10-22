@@ -676,12 +676,6 @@ struct CameraPicker: UIViewControllerRepresentable {
     }
 }
 
-/// Which file the print sheet opens with; nil lets the sheet choose.
-struct PrintTarget: Identifiable {
-    let id = UUID()
-    let fileId: Int?
-}
-
 /// Prominent glass for the main action in a row, plain glass otherwise.
 private struct GlassStyle: ViewModifier {
     let prominent: Bool

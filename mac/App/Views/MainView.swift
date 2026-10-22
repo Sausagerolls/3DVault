@@ -91,11 +91,18 @@ struct MainView: View {
             SidebarView(section: $section)
                 .navigationSplitViewColumnWidth(min: 200, ideal: 230, max: 320)
         } content: {
-            LibraryGrid(library: library, selection: $selection, cardSize: cardSize, trashed: section == .trash)
+            if section == .printers {
+                NavigationStack {
+                    PrintersView { selection = [$0] }
+                }
                 .navigationSplitViewColumnWidth(min: 380, ideal: 720)
-                .navigationTitle(title)
-                .navigationSubtitle(library.loading && library.items.isEmpty ? "Loading…" : "\(library.total) models")
-                .toolbar { toolbar }
+            } else {
+                LibraryGrid(library: library, selection: $selection, cardSize: cardSize, trashed: section == .trash)
+                    .navigationSplitViewColumnWidth(min: 380, ideal: 720)
+                    .navigationTitle(title)
+                    .navigationSubtitle(library.loading && library.items.isEmpty ? "Loading…" : "\(library.total) models")
+                    .toolbar { toolbar }
+            }
         } detail: {
             DetailPane(selection: selection, library: library, trashed: section == .trash)
                 .navigationSplitViewColumnWidth(min: 320, ideal: 400, max: 560)
