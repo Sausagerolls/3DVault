@@ -209,6 +209,7 @@ def _job_out(j: PrintJob) -> dict:
         "file_name": j.file_name,
         "plate": j.plate,
         "user": j.user.display_name if j.user else None,
+        "user_id": j.user_id,
         "state": j.state,
         "progress": j.progress,
         "layer": j.layer,
@@ -299,6 +300,7 @@ def list_jobs(
     machine_id: int | None = None,
     model_id: int | None = None,
     active: bool = False,
+    mine: bool = False,
     limit: int = 50,
     db: Session = Depends(get_db),
     user: User = Depends(current_user),
@@ -308,6 +310,8 @@ def list_jobs(
         q = q.filter(PrintJob.machine_id == machine_id)
     if model_id is not None:
         q = q.filter(PrintJob.model_id == model_id)
+    if mine:
+        q = q.filter(PrintJob.user_id == user.id)
     if active:
         q = q.filter(PrintJob.state.in_(("queued", *ACTIVE)))
         return [_job_out(j) for j in q.order_by(PrintJob.id).limit(limit)]
@@ -512,86 +516,41 @@ async def _toolpaths(db: Session, file_id: int, plate: int) -> dict:
         raise HTTPException(404, "That plate isn't sliced in this file")
 
 
-# ---------------------------------------------------------------- push notifications
+# ---------------------------------------------------------------- notifications
 
 
-class DeviceIn(BaseModel):
-    token: str
-    environment: str = "production"
-    start_token: str = ""
+@router.get("/notifier")
+def get_notifier(admin: User = Depends(require_admin)):
+    from . import notify
+
+    return notify.public_config()
 
 
-@router.post("/push/devices", status_code=204)
-def register_device(body: DeviceIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
-    from .models import PushDevice
-
-    if body.environment not in ("production", "sandbox") or not body.token.strip():
-        raise HTTPException(400, "Bad device token")
-    d = db.query(PushDevice).filter(PushDevice.token == body.token).first() or PushDevice(token=body.token)
-    d.user_id, d.environment = user.id, body.environment
-    if body.start_token:
-        d.start_token = body.start_token
-    db.add(d)
-    db.commit()
+class NotifierIn(BaseModel):
+    kind: str = ""  # "" (off) | ntfy | gotify | pushover | discord | webhook
+    url: str = ""
+    topic: str = ""
+    user_key: str = ""
+    secret: str | None = None  # token or app key; None keeps the stored one
+    events: list[str] = ["finished", "failed"]
 
 
-@router.delete("/push/devices/{token}", status_code=204)
-def unregister_device(token: str, db: Session = Depends(get_db), user: User = Depends(current_user)):
-    from .models import PushDevice
+@router.put("/notifier")
+def set_notifier(body: NotifierIn, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    from . import notify
 
-    db.query(PushDevice).filter(PushDevice.token == token, PushDevice.user_id == user.id).delete()
-    db.commit()
-
-
-class ActivityIn(BaseModel):
-    job_id: int
-    token: str
-    environment: str = "production"
-
-
-@router.post("/push/activities", status_code=204)
-def register_activity(body: ActivityIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
-    """A Live Activity for a job started on a device and has its update token."""
-    from .models import LiveActivity
-
-    if db.get(PrintJob, body.job_id) is None:
-        raise HTTPException(404)
-    a = db.query(LiveActivity).filter(LiveActivity.token == body.token).first() or LiveActivity(token=body.token)
-    a.job_id, a.user_id, a.environment = body.job_id, user.id, body.environment
-    db.add(a)
-    db.commit()
-
-
-@router.get("/push/config")
-def push_config(admin: User = Depends(require_admin)):
-    from . import apns
-
-    cfg = {}
-    if apns.configured():
-        import json
-
-        cfg = json.loads(apns.config_path().read_text())
-    return {"configured": apns.configured(), "key_id": cfg.get("key_id", ""), "team_id": cfg.get("team_id", apns.TEAM_ID)}
-
-
-@router.post("/push/config")
-async def set_push_config(request: Request, admin: User = Depends(require_admin)):
-    """Upload the Apple Push Notifications .p8 key with its key id."""
-    from . import apns
-
-    form = await request.form()
-    key, key_id = form.get("key"), str(form.get("key_id") or "").strip()
-    if not isinstance(key, UploadFile) or not key_id:
-        raise HTTPException(400, "Choose the .p8 key file and enter its key ID")
     try:
-        apns.save_key(await key.read(), key_id, str(form.get("team_id") or apns.TEAM_ID))
-    except ValueError:
-        raise HTTPException(400, "That isn't an Apple .p8 key file")
-    return push_config(admin)
+        notify.save_config(body.model_dump())
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return notify.public_config()
 
 
-@router.delete("/push/config", status_code=204)
-def delete_push_config(admin: User = Depends(require_admin)):
-    from . import apns
+@router.post("/notifier/test", status_code=204)
+async def test_notifier(admin: User = Depends(require_admin)):
+    from . import notify
 
-    apns.remove_key()
+    try:
+        await asyncio.to_thread(notify.send, "3DVault test", "Notifications from 3DVault are working.", raise_errors=True)
+    except Exception as e:
+        raise HTTPException(400, f"Sending failed: {e}")

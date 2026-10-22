@@ -1,127 +1,112 @@
-"""Tells the person who sent a print how it is going: Live Activity updates while it runs,
-and a notification when it finishes or fails. Sends happen on a background thread."""
+"""Optional alerts when prints end, sent by this server to a service its owner already uses:
+ntfy, Gotify, Pushover, a Discord webhook, or any webhook (such as Home Assistant).
 
+The iPhone app doesn't need this: it tracks prints it knows about with a Live Activity and
+local notifications. This is for owners who want failures reported the moment they happen.
+"""
+
+import json
 import logging
-import time
 from concurrent.futures import ThreadPoolExecutor
 
-from . import apns
+import httpx
+
 from .db import session_scope
-from .models import LiveActivity, PrintJob, PushDevice
+from .models import PrintJob, Setting
+from .secretbox import seal, unseal
 
 log = logging.getLogger("vault.notify")
 
-ACTIVITY_TOPIC = f"{apns.BUNDLE_ID}.push-type.liveactivity"
-# Progress updates go out at most this often per job, unless the state changes.
-UPDATE_SECONDS = 30
+KEY = "notifier"
+KINDS = ("ntfy", "gotify", "pushover", "discord", "webhook")
+EVENTS = ("started", "finished", "failed", "paused")
 
-_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="push")
-_last: dict[int, tuple[float, str, float]] = {}  # job id -> (time, state, progress)
+_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="notify")
 
 
-def content_state(job: PrintJob) -> dict:
-    """Must match PrintActivityAttributes.ContentState in the iOS app."""
+def _load() -> dict:
+    with session_scope() as db:
+        row = db.get(Setting, KEY)
+        return json.loads(row.value) if row and row.value else {}
+
+
+def public_config() -> dict:
+    cfg = _load()
     return {
-        "state": job.state,
-        "progress": round(job.progress or 0, 1),
-        "remainingS": job.remaining_s,
-        "layer": job.layer,
-        "totalLayers": job.total_layers,
-        "error": job.error[:120],
+        "kind": cfg.get("kind", ""), "url": cfg.get("url", ""), "topic": cfg.get("topic", ""),
+        "user_key": cfg.get("user_key", ""), "has_secret": bool(cfg.get("secret")),
+        "events": cfg.get("events", ["finished", "failed"]),
     }
 
 
-def attributes(job: PrintJob) -> dict:
-    return {"jobId": job.id, "modelId": job.model_id or 0, "modelName": job.model_name, "printerName": job.machine.name if job.machine else ""}
-
-
-def snapshot(job: PrintJob) -> dict:
-    """What the push needs, taken now: the sending thread may run before the job is committed."""
-    return {
-        "id": job.id, "user_id": job.user_id, "model_id": job.model_id, "machine_id": job.machine_id,
-        "state": job.state, "error": job.error, "model_name": job.model_name,
-        "content": content_state(job), "attributes": attributes(job),
+def save_config(new: dict) -> None:
+    kind = new.get("kind") or ""
+    if kind and kind not in KINDS:
+        raise ValueError("Unknown notification service")
+    old = _load()
+    cfg = {
+        "kind": kind,
+        "url": (new.get("url") or "").strip().rstrip("/"),
+        "topic": (new.get("topic") or "").strip(),
+        "user_key": (new.get("user_key") or "").strip(),
+        "events": [e for e in new.get("events") or [] if e in EVENTS],
+        "secret": seal(new["secret"]) if new.get("secret") is not None else old.get("secret", ""),
     }
+    if kind in ("ntfy", "gotify", "discord", "webhook") and not cfg["url"].startswith(("http://", "https://")):
+        raise ValueError("Enter the full address, starting with http:// or https://")
+    if kind == "ntfy" and not cfg["topic"]:
+        raise ValueError("Enter the ntfy topic")
+    if kind == "pushover" and not (cfg["user_key"] and cfg["secret"]):
+        raise ValueError("Enter the Pushover user key and app token")
+    with session_scope() as db:
+        db.merge(Setting(key=KEY, value=json.dumps(cfg)))
 
 
-def started(job: PrintJob) -> None:
-    _pool.submit(_safe, _started, snapshot(job))
-
-
-def progress(job: PrintJob) -> None:
-    """Called every poll while a job runs; throttled here."""
-    now = time.monotonic()
-    last = _last.get(job.id)
-    if last and last[1] == job.state and (now - last[0] < UPDATE_SECONDS or abs(job.progress - last[2]) < 1):
+def send(title: str, message: str, priority: str = "default", raise_errors: bool = False, extra: dict | None = None) -> None:
+    cfg = _load()
+    kind = cfg.get("kind")
+    if not kind:
+        if raise_errors:
+            raise ValueError("No notification service is set up")
         return
-    _last[job.id] = (now, job.state, job.progress)
-    _pool.submit(_safe, _update, snapshot(job), "update")
-
-
-def ended(job: PrintJob) -> None:
-    _last.pop(job.id, None)
-    _pool.submit(_safe, _ended, snapshot(job))
-
-
-def _safe(fn, *args) -> None:
-    if not apns.configured():
-        return
+    secret = unseal(cfg.get("secret", ""))
+    url = cfg.get("url", "")
+    high = priority == "high"
     try:
-        fn(*args)
-    except Exception:
-        log.exception("push %s failed", fn.__name__)
+        with httpx.Client(timeout=15) as c:
+            if kind == "ntfy":
+                headers = {"Title": title, "Priority": "high" if high else "default", "Tags": "printer"}
+                if secret:
+                    headers["Authorization"] = f"Bearer {secret}"
+                r = c.post(f"{url}/{cfg['topic']}", content=message.encode(), headers=headers)
+            elif kind == "gotify":
+                r = c.post(f"{url}/message", params={"token": secret}, json={"title": title, "message": message, "priority": 8 if high else 5})
+            elif kind == "pushover":
+                r = c.post("https://api.pushover.net/1/messages.json", data={
+                    "token": secret, "user": cfg["user_key"], "title": title, "message": message, "priority": 1 if high else 0})
+            elif kind == "discord":
+                r = c.post(url, json={"content": f"**{title}**\n{message}"})
+            else:
+                headers = {"Authorization": f"Bearer {secret}"} if secret else {}
+                r = c.post(url, json={"title": title, "message": message, **(extra or {})}, headers=headers)
+            r.raise_for_status()
+    except Exception as e:
+        log.warning("notification via %s failed: %s", kind, e)
+        if raise_errors:
+            raise
 
 
-def _started(job: dict) -> None:
-    with session_scope() as db:
-        if not job["user_id"]:
-            return
-        if db.query(LiveActivity).filter(LiveActivity.job_id == job["id"]).count():
-            _update_db(db, job, "update")
-            return
-        # Push-to-start: the device starts the Live Activity itself, then sends us its token.
-        payload = {"aps": {
-            "timestamp": int(time.time()), "event": "start",
-            "content-state": job["content"],
-            "attributes-type": "PrintActivityAttributes",
-            "attributes": job["attributes"],
-            "alert": {"title": "Printing", "body": f"{job['model_name']} started on {job['attributes']['printerName']}"},
-        }}
-        for d in db.query(PushDevice).filter(PushDevice.user_id == job["user_id"], PushDevice.start_token != ""):
-            if apns.sender.send(d.start_token, d.environment, payload, "liveactivity", ACTIVITY_TOPIC) == 410:
-                d.start_token = ""
-
-
-def _update(job: dict, event: str) -> None:
-    with session_scope() as db:
-        _update_db(db, job, event)
-
-
-def _update_db(db, job: dict, event: str) -> None:
-    now = int(time.time())
-    aps = {"timestamp": now, "event": event, "content-state": job["content"]}
-    if event == "end":
-        aps["dismissal-date"] = now + 4 * 3600
-    # Routine progress uses low priority, which doesn't count against Apple's update budget.
-    priority = 10 if event == "end" or job["state"] != "printing" else 5
-    for a in db.query(LiveActivity).filter(LiveActivity.job_id == job["id"]):
-        code = apns.sender.send(a.token, a.environment, {"aps": aps}, "liveactivity", ACTIVITY_TOPIC, priority)
-        if code == 410 or event == "end":
-            db.delete(a)
-
-
-def _ended(job: dict) -> None:
-    with session_scope() as db:
-        _update_db(db, job, "end")
-        if job["state"] not in ("finished", "failed") or not job["user_id"]:
-            return
-        printer = job["attributes"]["printerName"] or "the printer"
-        if job["state"] == "finished":
-            alert = {"title": "Print finished", "body": f"{job['model_name']} is done on {printer}. Clear the bed for the next print."}
-        else:
-            alert = {"title": "Print failed", "body": f"{job['model_name']} stopped on {printer}. {job['error']}".strip()}
-        payload = {"aps": {"alert": alert, "sound": "default", "thread-id": f"printer-{job['machine_id']}"},
-                   "modelId": job["model_id"], "jobId": job["id"]}
-        for d in db.query(PushDevice).filter(PushDevice.user_id == job["user_id"]):
-            if apns.sender.send(d.token, d.environment, payload, collapse_id=f"job-{job['id']}") == 410:
-                db.delete(d)
+def job_event(job: PrintJob, event: str) -> None:
+    """Called by the print manager when a job starts, pauses or ends."""
+    events = _load().get("events", ["finished", "failed"])
+    if event not in events:
+        return
+    printer = job.machine.name if job.machine else "the printer"
+    title, message, priority = {
+        "started": ("Print started", f"{job.model_name} started on {printer}.", "default"),
+        "finished": ("Print finished", f"{job.model_name} is done on {printer}. Clear the bed for the next print.", "default"),
+        "failed": ("Print failed", f"{job.model_name} stopped on {printer}. {job.error}".strip(), "high"),
+        "paused": ("Print paused", f"{job.model_name} is paused on {printer}.", "high"),
+    }[event]
+    extra = {"event": event, "job_id": job.id, "model_id": job.model_id, "printer": printer, "progress": job.progress}
+    _pool.submit(send, title, message, priority, False, extra)

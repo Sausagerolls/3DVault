@@ -29,7 +29,6 @@ targets:
     entitlements:
       path: App/3DVault.entitlements
       properties:
-        aps-environment: development
         com.apple.security.application-groups: [group.com.3dvault.shared]
         keychain-access-groups: ["$(AppIdentifierPrefix)com.3dvault.shared"]
     info:
@@ -50,7 +49,8 @@ targets:
         NSCameraUsageDescription: Take photos of your prints to add to a model.
         NSPhotoLibraryUsageDescription: Add photos of your prints to a model.
         NSSupportsLiveActivities: true
-        NSSupportsLiveActivitiesFrequentUpdates: true
+        UIBackgroundModes: [fetch]
+        BGTaskSchedulerPermittedIdentifiers: [com.3dvault.mac.refresh]
         CFBundleURLTypes:
           - CFBundleURLName: com.3dvault.mac
             CFBundleURLSchemes: [threedvault]

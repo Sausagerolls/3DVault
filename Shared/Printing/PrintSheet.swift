@@ -464,7 +464,7 @@ struct PrintSheet: View {
             do {
                 let job = try await client.print(fileId: fileId, machineId: machineId, plate: plate, amsMapping: ams)
                 #if os(iOS)
-                if !willQueue { PushManager.shared.printStarted(job) }
+                PrintTracker.shared.track(job)
                 #endif
                 successHaptic()
                 state.show(willQueue ? "Added to the \(job.machineName) queue" : "Sending to \(job.machineName)")

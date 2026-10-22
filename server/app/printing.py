@@ -143,10 +143,12 @@ class PrintManager:
         if active and active.state in ("printing", "paused"):
             if s.state in ("preparing", "printing", "paused"):
                 self._seen.add(active.id)
+                was = active.state
                 active.state = "paused" if s.state == "paused" else "printing"
+                if active.state == "paused" and was != "paused":
+                    notify.job_event(active, "paused")
                 active.progress = s.progress
                 active.layer, active.total_layers, active.remaining_s = s.layer, s.total_layers, s.remaining_s
-                notify.progress(active)
             elif active.id in self._seen and s.state in ("finished", "failed", "idle"):
                 outcome = {"finished": "finished", "failed": "failed"}.get(s.state, "cancelled")
                 if outcome == "finished":
@@ -186,8 +188,8 @@ class PrintManager:
                 db.add(um)
             um.status = "printed" if outcome == "finished" else "failed"
         log.info("print job %s on printer %s %s", job.id, job.machine_id, outcome)
-        if job.started_at:
-            notify.ended(job)
+        if job.started_at and outcome in ("finished", "failed"):
+            notify.job_event(job, outcome)
 
     def _send(self, machine_id: int, job_id: int) -> None:
         error = ""
@@ -223,7 +225,7 @@ class PrintManager:
                 job.started_at = None  # never reached the bed, so it doesn't need clearing
             else:
                 job.state = "printing"
-                notify.started(job)
+                notify.job_event(job, "started")
         self.wake()
 
 

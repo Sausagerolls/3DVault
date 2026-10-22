@@ -193,8 +193,12 @@ extension APIClient {
         ]))
     }
 
-    public func printJobs(machineId: Int? = nil, modelId: Int? = nil, active: Bool = false) async throws -> [PrintJob] {
+    public func printJob(_ id: Int) async throws -> PrintJob { try await get("jobs/\(id)") }
+
+    /// `mine` limits the list to prints sent by the signed-in person.
+    public func printJobs(machineId: Int? = nil, modelId: Int? = nil, active: Bool = false, mine: Bool = false) async throws -> [PrintJob] {
         var q: [URLQueryItem] = []
+        if mine { q.append(.init(name: "mine", value: "true")) }
         if let machineId { q.append(.init(name: "machine_id", value: String(machineId))) }
         if let modelId { q.append(.init(name: "model_id", value: String(modelId))) }
         if active { q.append(.init(name: "active", value: "true")) }
@@ -215,23 +219,6 @@ extension APIClient {
     }
 
     public func cameraURL(machine: Int) -> URL { url("machines/\(machine)/camera") }
-
-    /// environment is "sandbox" for development builds and "production" otherwise.
-    public func registerPushDevice(token: String, environment: String, startToken: String?) async throws {
-        var body: [String: JSONValue] = ["token": .string(token), "environment": .string(environment)]
-        if let startToken { body["start_token"] = .string(startToken) }
-        _ = try await send("push/devices", method: "POST", json: body)
-    }
-
-    public func unregisterPushDevice(token: String) async throws {
-        _ = try await send("push/devices/\(token)", method: "DELETE")
-    }
-
-    public func registerLiveActivity(jobId: Int, token: String, environment: String) async throws {
-        _ = try await send("push/activities", method: "POST", json: [
-            "job_id": .number(Double(jobId)), "token": .string(token), "environment": .string(environment),
-        ])
-    }
 
     public func slicerOptions(machineId: Int) async throws -> SlicerOptions {
         try await get("slicer/options", query: [.init(name: "machine_id", value: String(machineId))])

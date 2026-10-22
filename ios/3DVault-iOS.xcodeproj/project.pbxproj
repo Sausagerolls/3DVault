@@ -19,7 +19,6 @@
 		4CF99A0BC10580621CA960E4 /* PrintActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ECA00596FF9DBFE44A6CD58 /* PrintActivity.swift */; };
 		5018F1568C3720856CF76360 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2861EE6BE3983FF4124F208D /* SettingsView.swift */; };
 		5B2C3EAB3A918EB400EB405A /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2B0673A2B0BE663C38C076C /* LibraryView.swift */; };
-		6204A6054BACA3E63B365BE5 /* PushManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BC5684FD0359C2EF3122367 /* PushManager.swift */; };
 		66F7DE06132A3BEA20F5F001 /* SharedConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C06FF6CB299A7BF70A9A3C3 /* SharedConfig.swift */; };
 		6752EF7CCCF996296E263CA5 /* 3DVaultShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 25FB67384B91E42FD5E47AF8 /* 3DVaultShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		7097706A3976A36D2F9D22E0 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AB4A5794CD974E927BAE09F /* ShareViewController.swift */; };
@@ -32,6 +31,7 @@
 		A7C096001A3FF4D52E3243B2 /* ThumbnailLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E7FFAF33780C807E378CE9 /* ThumbnailLoader.swift */; };
 		A9A0FDF25D9DB1498E729F70 /* VaultKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1B3062130EF3B37ACCD459D5 /* VaultKit */; };
 		AF4874802E9571033439E078 /* PrintActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ECA00596FF9DBFE44A6CD58 /* PrintActivity.swift */; };
+		AFB09C0CF71A32C216D20C7A /* PrintTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B7FE1A92193E9ABCB07E51E /* PrintTracker.swift */; };
 		B0983655ED5BA87498BEA1C0 /* UploadSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50D7A0E503827618FB0DE788 /* UploadSheet.swift */; };
 		B8CDC40A406464EB1C2AF448 /* PinStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C9B7AD712936FF78CBDE749 /* PinStore.swift */; };
 		CE6FC820B1DC36B1A8DAF007 /* BulkSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 146543F98888099A20FB665A /* BulkSheet.swift */; };
@@ -82,12 +82,12 @@
 		09D7E6253FA25FA7B25E7CFB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		0C06FF6CB299A7BF70A9A3C3 /* SharedConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedConfig.swift; sourceTree = "<group>"; };
 		146543F98888099A20FB665A /* BulkSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkSheet.swift; sourceTree = "<group>"; };
-		1BC5684FD0359C2EF3122367 /* PushManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushManager.swift; sourceTree = "<group>"; };
 		25FB67384B91E42FD5E47AF8 /* 3DVaultShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = 3DVaultShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		2861EE6BE3983FF4124F208D /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		2C9B7AD712936FF78CBDE749 /* PinStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinStore.swift; sourceTree = "<group>"; };
 		311C26001D01B9138E844719 /* Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Appearance.swift; sourceTree = "<group>"; };
 		3390F7B3C86EC8802FFD7DE0 /* FileCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileCache.swift; sourceTree = "<group>"; };
+		4B7FE1A92193E9ABCB07E51E /* PrintTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintTracker.swift; sourceTree = "<group>"; };
 		50D7A0E503827618FB0DE788 /* UploadSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadSheet.swift; sourceTree = "<group>"; };
 		518593DD28B53862031DF66C /* 3DVaultWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = 3DVaultWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		57676A81AD5CDAB13D36633F /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
@@ -266,7 +266,7 @@
 				3390F7B3C86EC8802FFD7DE0 /* FileCache.swift */,
 				2C9B7AD712936FF78CBDE749 /* PinStore.swift */,
 				6ECA00596FF9DBFE44A6CD58 /* PrintActivity.swift */,
-				1BC5684FD0359C2EF3122367 /* PushManager.swift */,
+				4B7FE1A92193E9ABCB07E51E /* PrintTracker.swift */,
 				0C06FF6CB299A7BF70A9A3C3 /* SharedConfig.swift */,
 				F7E7FFAF33780C807E378CE9 /* ThumbnailLoader.swift */,
 			);
@@ -442,8 +442,8 @@
 				47A1F1BB10EAFDFCDB1A7039 /* Platform.swift in Sources */,
 				4CF99A0BC10580621CA960E4 /* PrintActivity.swift in Sources */,
 				1009A3669EF7F275701431DB /* PrintSheet.swift in Sources */,
+				AFB09C0CF71A32C216D20C7A /* PrintTracker.swift in Sources */,
 				7AA1F16FEE06373F7167728B /* PrintersView.swift in Sources */,
-				6204A6054BACA3E63B365BE5 /* PushManager.swift in Sources */,
 				5018F1568C3720856CF76360 /* SettingsView.swift in Sources */,
 				DA2AC8384F16486CB141598F /* SharedConfig.swift in Sources */,
 				14459896A884C6B712432A0E /* SidebarView.swift in Sources */,

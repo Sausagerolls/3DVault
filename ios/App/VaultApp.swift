@@ -3,9 +3,9 @@ import VaultKit
 
 @main
 struct VaultApp: App {
-    @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var state = AppState()
     @AppStorage(Appearance.key) private var appearance = Appearance.system
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -22,6 +22,13 @@ struct VaultApp: App {
                     guard url.isFileURL, state.client != nil else { return }
                     state.stageForUpload([url])
                 }
+        }
+        .onChange(of: scenePhase) {
+            if scenePhase == .background { PrintTracker.shared.scheduleRefresh() }
+        }
+        // iOS wakes the app now and then while prints run; check them and update the Live Activity.
+        .backgroundTask(.appRefresh(PrintTracker.refreshTask)) {
+            await PrintTracker.shared.sync()
         }
     }
 }
@@ -73,10 +80,16 @@ struct RootView: View {
         }
         .modifier(Prompts())
         .task(id: state.user?.id) {
-            if state.user != nil, state.client != nil { PushManager.shared.start(state: state) }
+            guard state.user != nil, state.client != nil else { return }
+            PrintTracker.shared.start(state: state)
             #if DEBUG
-            PushManager.shared.testActivity()
+            PrintTracker.shared.testActivity()
             #endif
+            // Keep prints' Live Activities current while the app is open.
+            while !Task.isCancelled {
+                await PrintTracker.shared.sync()
+                try? await Task.sleep(for: .seconds(30))
+            }
         }
     }
 }

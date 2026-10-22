@@ -12,6 +12,9 @@ struct PrintActivityAttributes: ActivityAttributes {
         var layer: Int?
         var totalLayers: Int?
         var error: String?
+        /// Estimated start and end of printing, so the Live Activity can count down by itself.
+        var startDate: Date?
+        var endDate: Date?
     }
 
     var jobId: Int

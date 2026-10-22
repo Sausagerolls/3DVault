@@ -93,7 +93,7 @@ final class AppState {
     }
 
     func signOut() async {
-        await PushManager.shared.signedOut()
+        await PrintTracker.shared.signedOut()
         await client?.logout()
         if let serverURL, let user { SharedConfig.forget(server: serverURL, username: user.username) }
         client = nil

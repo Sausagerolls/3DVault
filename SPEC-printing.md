@@ -21,7 +21,7 @@ Send models from 3DVault straight to a printer, slicing on the server when neede
 | Discovery | Bambu SSDP and mDNS scan, with manual IP fallback. The main container moves to host networking. |
 | Sliced output | Saved to the model as a file named after printer and profile, for reprinting. |
 | Busy printer | Jobs queue per printer. The next job starts only after someone taps "Bed cleared". |
-| Notifications | APNs push and Live Activities. The APNs key lives on the server only, never in the repo. |
+| Notifications | No push service (it would need the developer's key on every server, or a relay). The iPhone app follows its user's prints itself: a Live Activity that counts down to the estimated finish, a local notification at that time, an alert when it sees a print end, and background refresh. Servers can optionally post alerts to the owner's own ntfy, Gotify, Pushover, Discord or webhook. |
 | Testing | Simulated printers for every protocol, then real-hardware checks on a Bambu A1 mini. |
 | App Review | The demo server gets a simulated "Demo A1 mini" that accepts jobs and fakes progress and camera. |
 
@@ -74,7 +74,7 @@ Send models from 3DVault straight to a printer, slicing on the server when neede
 1. **Server foundation** (done 2026-10-22): printer model, driver interface, simulated printer, job queue, send pre-sliced files, status API, and the iOS print sheet for pre-sliced files plus the Printers tab.
 2. **Bambu LAN driver**: MQTT, FTPS, AMS read and mapping, camera. Tested against a protocol simulator, then the A1 mini.
 3. **Server slicing**: Orca CLI in the image, vendor and imported profiles, per-print overrides, summary and layer preview, saving the sliced file to the model.
-4. **Push**: APNs, Live Activities and the widget extension.
+4. **Notifications**: on-device Live Activity and local notifications, background refresh, optional server alerts to the owner's own service.
 5. **Moonraker, PrusaLink and OctoPrint drivers**.
 6. **Web and Mac clients**, plus the demo server mock printer and review notes, then release.
 

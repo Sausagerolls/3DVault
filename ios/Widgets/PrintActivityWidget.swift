@@ -25,23 +25,21 @@ struct PrintActivityWidget: Widget {
                         .font(.caption).lineLimit(1)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text(statePercent(context.state)).font(.title3.monospacedDigit().bold())
+                    Remaining(state: context.state).font(.title3.monospacedDigit().bold())
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(context.attributes.modelName).font(.headline).lineLimit(1)
-                        ProgressView(value: context.state.progress, total: 100).tint(stateTint(context.state))
+                        PrintProgress(state: context.state)
                         Text(stateDetail(context.state)).font(.caption).foregroundStyle(.secondary)
                     }
                 }
             } compactLeading: {
                 Image(systemName: stateIcon(context.state)).foregroundStyle(stateTint(context.state))
             } compactTrailing: {
-                Text(statePercent(context.state)).monospacedDigit()
+                Remaining(state: context.state).monospacedDigit().frame(maxWidth: 64)
             } minimal: {
-                ProgressView(value: context.state.progress, total: 100)
-                    .progressViewStyle(.circular)
-                    .tint(stateTint(context.state))
+                PrintProgress(state: context.state, circular: true)
             }
             .widgetURL(url(context))
         }
@@ -61,9 +59,9 @@ private struct LockScreenView: View {
                 Image(systemName: stateIcon(context.state)).foregroundStyle(stateTint(context.state))
                 Text(context.attributes.modelName).font(.headline).lineLimit(1)
                 Spacer()
-                Text(statePercent(context.state)).font(.title2.monospacedDigit().bold())
+                Remaining(state: context.state).font(.title2.monospacedDigit().bold())
             }
-            ProgressView(value: context.state.progress, total: 100).tint(stateTint(context.state))
+            PrintProgress(state: context.state)
             HStack {
                 Text(context.attributes.printerName)
                 Spacer()
@@ -72,6 +70,44 @@ private struct LockScreenView: View {
             .font(.caption)
             .foregroundStyle(.secondary)
         }
+    }
+}
+
+/// Counts down to the estimated finish by itself while printing; otherwise shows the last percentage.
+private struct Remaining: View {
+    let state: PrintActivityAttributes.ContentState
+
+    var body: some View {
+        if state.state == "printing", let end = state.endDate, end > .now {
+            Text(timerInterval: Date.now...end, countsDown: true)
+                .multilineTextAlignment(.trailing)
+        } else {
+            Text(statePercent(state))
+        }
+    }
+}
+
+/// A progress bar the system advances on its own between the app's checks.
+private struct PrintProgress: View {
+    let state: PrintActivityAttributes.ContentState
+    var circular = false
+
+    var body: some View {
+        Group {
+            if state.state == "printing", let start = state.startDate, let end = state.endDate, start < end {
+                if circular {
+                    ProgressView(timerInterval: start...end, countsDown: false) { EmptyView() } currentValueLabel: { EmptyView() }
+                        .progressViewStyle(.circular)
+                } else {
+                    ProgressView(timerInterval: start...end, countsDown: false) { EmptyView() } currentValueLabel: { EmptyView() }
+                }
+            } else if circular {
+                ProgressView(value: state.progress, total: 100).progressViewStyle(.circular)
+            } else {
+                ProgressView(value: state.progress, total: 100)
+            }
+        }
+        .tint(stateTint(state))
     }
 }
 
@@ -106,10 +142,7 @@ private func stateDetail(_ s: PrintActivityAttributes.ContentState) -> String {
     default:
         var parts: [String] = []
         if let l = s.layer, let t = s.totalLayers { parts.append("Layer \(l)/\(t)") }
-        if let r = s.remainingS {
-            let h = r / 3600, m = r % 3600 / 60
-            parts.append(h > 0 ? "\(h)h \(m)m left" : "\(m)m left")
-        }
-        return parts.isEmpty ? "Printing" : parts.joined(separator: " · ")
+        parts.append(s.endDate.map { "Done about \($0.formatted(date: .omitted, time: .shortened))" } ?? "Printing")
+        return parts.joined(separator: " · ")
     }
 }

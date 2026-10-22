@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api, type Collection, type Machine, type MachineKind, type Printer, type Rule, type User } from "../api";
@@ -29,7 +29,7 @@ export default function Settings() {
         {tab === "Printers" && (
           <>
             {user.role === "admin" && <Machines />}
-            {user.role === "admin" && <PushKey />}
+            {user.role === "admin" && <PrintAlerts />}
             <Printers />
           </>
         )}
@@ -509,49 +509,93 @@ function Machines() {
   );
 }
 
-/* ---------------------------------------------------------------- push notifications */
+/* ---------------------------------------------------------------- print alerts */
 
-function PushKey() {
-  const cfg = useQuery({ queryKey: ["push-config"], queryFn: () => api<{ configured: boolean; key_id: string; team_id: string }>("/push/config") });
+type NotifierCfg = { kind: string; url: string; topic: string; user_key: string; has_secret: boolean; events: string[] };
+
+const NOTIFIERS: Record<string, { label: string; url?: string; topic?: boolean; userKey?: boolean; secret?: string }> = {
+  ntfy: { label: "ntfy", url: "Server (https://ntfy.sh or your own)", topic: true, secret: "Access token (optional)" },
+  gotify: { label: "Gotify", url: "Server address", secret: "App token" },
+  pushover: { label: "Pushover", userKey: true, secret: "App API token" },
+  discord: { label: "Discord webhook", url: "Webhook URL" },
+  webhook: { label: "Webhook (Home Assistant and others)", url: "Webhook URL", secret: "Bearer token (optional)" },
+};
+const EVENT_LABELS: Record<string, string> = { started: "Started", finished: "Finished", failed: "Failed", paused: "Paused" };
+
+function PrintAlerts() {
+  const cfg = useQuery({ queryKey: ["notifier"], queryFn: () => api<NotifierCfg>("/notifier") });
   const run = useRun();
   const inv = useInvalidate();
-  const [keyId, setKeyId] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [form, setForm] = useState<(NotifierCfg & { secret: string }) | null>(null);
+  useEffect(() => {
+    if (cfg.data && !form) setForm({ ...cfg.data, secret: "" });
+  }, [cfg.data, form]);
+  if (!form) return null;
+  const spec = NOTIFIERS[form.kind];
+  const save = () =>
+    run(() => api("/notifier", { method: "PUT", json: { ...form, secret: form.secret || (form.has_secret ? null : "") } }), "Saved").then(() => inv("notifier"));
   return (
     <section className="panel col" style={{ marginBottom: 16 }}>
-      <h2>Print notifications</h2>
+      <h2>Print alerts</h2>
       <p className="dim" style={{ margin: 0 }}>
-        The iPhone app shows a Live Activity while a print runs and a notification when it ends. This needs an Apple Push Notifications key
-        (.p8) from developer.apple.com › Certificates, Identifiers &amp; Profiles › Keys. The key stays on this server.
+        The iPhone app follows your prints with a Live Activity and its own notifications. To hear about prints the moment they finish or fail,
+        wherever you are, this server can also post to a service you already use. Nothing goes through anyone else's servers.
       </p>
-      {cfg.data?.configured ? (
-        <div className="row" style={{ gap: 8 }}>
-          <span>
-            Key <code>{cfg.data.key_id}</code> is set up.
-          </span>
-          <span className="spacer" />
-          <button className="small danger" onClick={() => run(() => api("/push/config", { method: "DELETE" })).then(() => inv("push-config"))}>
-            Remove key
-          </button>
-        </div>
-      ) : (
-        <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-          <input type="file" accept=".p8" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-          <input placeholder="Key ID" value={keyId} onChange={(e) => setKeyId(e.target.value)} style={{ width: 140 }} />
-          <button
-            className="small primary"
-            disabled={!file || !keyId}
-            onClick={async () => {
-              const form = new FormData();
-              form.append("key", file!);
-              form.append("key_id", keyId);
-              (await run(() => api("/push/config", { method: "POST", body: form }), "Notifications set up")) && inv("push-config");
-            }}
-          >
-            Save key
-          </button>
+      <label>
+        Send alerts to
+        <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
+          <option value="">Nowhere</option>
+          {Object.entries(NOTIFIERS).map(([k, v]) => (
+            <option key={k} value={k}>{v.label}</option>
+          ))}
+        </select>
+      </label>
+      {spec?.url && (
+        <label>
+          {spec.url}
+          <input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="https://" />
+        </label>
+      )}
+      {spec?.topic && (
+        <label>
+          Topic
+          <input value={form.topic} onChange={(e) => setForm({ ...form, topic: e.target.value })} />
+        </label>
+      )}
+      {spec?.userKey && (
+        <label>
+          User key
+          <input value={form.user_key} onChange={(e) => setForm({ ...form, user_key: e.target.value })} />
+        </label>
+      )}
+      {spec?.secret && (
+        <label>
+          {spec.secret}
+          <input type="password" autoComplete="off" value={form.secret} placeholder={form.has_secret ? "Unchanged" : ""} onChange={(e) => setForm({ ...form, secret: e.target.value })} />
+        </label>
+      )}
+      {form.kind && (
+        <div className="row" style={{ gap: 12, flexWrap: "wrap" }}>
+          {Object.entries(EVENT_LABELS).map(([k, label]) => (
+            <label key={k} className="row" style={{ gap: 6 }}>
+              <input
+                type="checkbox"
+                checked={form.events.includes(k)}
+                onChange={(e) => setForm({ ...form, events: e.target.checked ? [...form.events, k] : form.events.filter((x) => x !== k) })}
+              />
+              {label}
+            </label>
+          ))}
         </div>
       )}
+      <div className="row" style={{ gap: 8 }}>
+        <button className="small primary" onClick={save}>Save</button>
+        {form.kind && cfg.data?.kind === form.kind && (
+          <button className="small" onClick={() => run(() => api("/notifier/test", { method: "POST" }), "Test sent")}>
+            Send test
+          </button>
+        )}
+      </div>
     </section>
   );
 }
