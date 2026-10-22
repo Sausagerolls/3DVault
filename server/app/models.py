@@ -268,6 +268,8 @@ class Machine(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     # Set when a print ends; the queue waits until someone confirms the bed is clear.
     needs_clear: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Orca printer profile used when slicing for this printer, e.g. "Bambu Lab A1 mini 0.4 nozzle".
+    slicer_printer: Mapped[str] = mapped_column(String(256), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     printer: Mapped[Printer | None] = relationship()
 
@@ -296,3 +298,24 @@ class PrintJob(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     machine: Mapped[Machine] = relationship()
     user: Mapped[User | None] = relationship()
+
+
+class SliceTask(Base):
+    """A request to slice model files for a printer. The worker runs it and adds the result to the model."""
+
+    __tablename__ = "slices"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    model_id: Mapped[int] = mapped_column(ForeignKey("models.id", ondelete="CASCADE"), index=True)
+    machine_id: Mapped[int | None] = mapped_column(ForeignKey("machines.id", ondelete="SET NULL"), nullable=True)
+    file_ids: Mapped[list] = mapped_column(JSON, default=list)
+    printer_profile: Mapped[str] = mapped_column(String(256), default="")
+    process_profile: Mapped[str] = mapped_column(String(256), default="")
+    filament_profiles: Mapped[list] = mapped_column(JSON, default=list)
+    overrides: Mapped[dict] = mapped_column(JSON, default=dict)
+    state: Mapped[str] = mapped_column(String(16), default="queued")  # queued | slicing | done | failed
+    error: Mapped[str] = mapped_column(Text, default="")
+    output_file_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

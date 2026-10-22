@@ -36,7 +36,7 @@ struct ModelDetailView: View {
             await load()
             #if DEBUG
             // Simulator testing: VAULT_TEST_PRINT=1 opens the print sheet.
-            if ProcessInfo.processInfo.environment["VAULT_TEST_PRINT"] == "1", model != nil { printing = PrintTarget(fileId: nil) }
+            if ProcessInfo.processInfo.environment["VAULT_TEST_PRINT"] != nil, model != nil { printing = PrintTarget(fileId: nil) }
             #endif
         }
         .task(id: model?.files.contains { $0.status == "pending" }) {

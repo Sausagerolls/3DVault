@@ -104,8 +104,55 @@ def run_job(kind: str, payload: dict) -> None:
                 services.refresh_model(db, model)
     elif kind == "rescan":
         rescan_library()
+    elif kind == "slice":
+        run_slice(payload["slice_id"])
     else:
         raise ValueError(f"Unknown job kind {kind}")
+
+
+def run_slice(slice_id: int) -> None:
+    """Slice with OrcaSlicer and add the .gcode.3mf to the model, named after printer and process."""
+    import tempfile
+
+    from . import services, slicer
+    from .models import Machine, SliceTask, User
+
+    with session_scope() as db:
+        t = db.get(SliceTask, slice_id)
+        if t is None or t.state != "queued":
+            return
+        files = [db.get(File, i) for i in t.file_ids]
+        if any(f is None for f in files):
+            t.state, t.error, t.finished_at = "failed", "A file was deleted before slicing", utcnow()
+            return
+        t.state, t.started_at = "slicing", utcnow()
+        inputs = [file_path(f) for f in files]
+        machine = db.get(Machine, t.machine_id) if t.machine_id else None
+        args = (t.printer_profile, t.process_profile, list(t.filament_profiles), dict(t.overrides))
+        label = " - ".join(x for x in (machine.name if machine else t.printer_profile, t.process_profile.split(" @")[0]) if x)
+    out = Path(tempfile.mkstemp(dir=settings.staging_dir, suffix=".gcode.3mf")[1])
+    try:
+        slicer.slice_files(inputs, *args, out)
+    except Exception as e:
+        out.unlink(missing_ok=True)
+        with session_scope() as db:
+            t = db.get(SliceTask, slice_id)
+            t.state, t.error, t.finished_at = "failed", str(e)[:2000], utcnow()
+        log.warning("slice %s failed: %s", slice_id, e)
+        return
+    with session_scope() as db:
+        t = db.get(SliceTask, slice_id)
+        model = db.get(Model, t.model_id)
+        user = db.get(User, t.user_id) if t.user_id else None
+        if model is None or model.deleted_at is not None:
+            out.unlink(missing_ok=True)
+            t.state, t.error, t.finished_at = "failed", "The model was deleted while slicing", utcnow()
+            return
+        base = files[0].rel_path.rsplit("/", 1)[-1].rsplit(".", 1)[0] if len(t.file_ids) == 1 else model.name
+        f = services.add_file(db, model, out, f"sliced/{base} - {label}.gcode.3mf", user)
+        services.refresh_model(db, model)
+        t.state, t.output_file_id, t.finished_at = "done", f.id, utcnow()
+    log.info("slice %s done", slice_id)
 
 
 # ---------------------------------------------------------------- periodic

@@ -262,9 +262,88 @@ function Tags() {
 
 /* ---------------------------------------------------------------- connected printers */
 
-type MachineForm = { id?: number; name: string; kind: string; host: string; serial: string; secret: string; printer_id: number | null; enabled: boolean; has_secret?: boolean };
+type MachineForm = {
+  id?: number;
+  name: string;
+  kind: string;
+  host: string;
+  serial: string;
+  secret: string;
+  printer_id: number | null;
+  enabled: boolean;
+  slicer_printer: string;
+  has_secret?: boolean;
+};
 
-const EMPTY_MACHINE: MachineForm = { name: "", kind: "", host: "", serial: "", secret: "", printer_id: null, enabled: true };
+const EMPTY_MACHINE: MachineForm = { name: "", kind: "", host: "", serial: "", secret: "", printer_id: null, enabled: true, slicer_printer: "" };
+
+type SlicerPrinter = { name: string; vendor: string; model: string; user: boolean };
+
+/** Search box over Orca's printer profiles; there are about a thousand. */
+function SlicerPrinterInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [q, setQ] = useState(value);
+  const found = useQuery({
+    queryKey: ["slicer-printers", q],
+    queryFn: () => api<SlicerPrinter[]>(`/slicer/printers?q=${encodeURIComponent(q)}&limit=30`),
+    enabled: q.length >= 2,
+  });
+  return (
+    <>
+      <input
+        list="slicer-printers"
+        value={q}
+        placeholder="Bambu Lab A1 mini 0.4 nozzle"
+        onChange={(e) => {
+          setQ(e.target.value);
+          onChange(e.target.value);
+        }}
+      />
+      <datalist id="slicer-printers">
+        {found.data?.map((p) => (
+          <option key={p.vendor + p.name} value={p.name}>
+            {p.user ? "Imported" : p.vendor}
+          </option>
+        ))}
+      </datalist>
+    </>
+  );
+}
+
+function SlicerProfiles() {
+  const status = useQuery({ queryKey: ["slicer"], queryFn: () => api<{ available: boolean }>("/slicer") });
+  const run = useRun();
+  const inv = useInvalidate();
+  if (!status.data?.available) {
+    return <p className="dim" style={{ margin: 0 }}>Slicing isn't available in this server image, so only pre-sliced files can be printed.</p>;
+  }
+  return (
+    <div className="row" style={{ gap: 8 }}>
+      <span className="dim">Import printer, process or filament presets exported from OrcaSlicer or Bambu Studio.</span>
+      <span className="spacer" />
+      <label className="btn small">
+        Import presets…
+        <input
+          type="file"
+          multiple
+          accept=".json,.zip,.orca_printer,.orca_filament,.bbscfg,.bbsflmt"
+          style={{ display: "none" }}
+          onChange={async (e) => {
+            const files = Array.from(e.target.files ?? []);
+            e.target.value = "";
+            if (!files.length) return;
+            const form = new FormData();
+            files.forEach((f) => form.append("files", f));
+            await run(async () => {
+              const r = await api<{ imported: string[] }>("/slicer/import", { method: "POST", body: form });
+              inv("slicer-printers");
+              return r;
+            }, "Presets imported");
+          }}
+        />
+      </label>
+    </div>
+  );
+}
 
 function Machines() {
   const kinds = useQuery({ queryKey: ["machine-kinds"], queryFn: () => api<MachineKind[]>("/machine-kinds") });
@@ -335,6 +414,7 @@ function Machines() {
         </div>
       )}
       <p className="dim" style={{ margin: 0 }}>Printers 3DVault can send prints to. Everyone signed in can print to them and see their status.</p>
+      <SlicerProfiles />
       {!!machines.data?.length && (
         <table className="list">
           <tbody>
@@ -397,6 +477,11 @@ function Machines() {
               )}
             </label>
           ))}
+          <label>
+            Slicer profile
+            <SlicerPrinterInput value={form.slicer_printer} onChange={(v) => setForm({ ...form, slicer_printer: v })} />
+            <span className="faint" style={{ fontSize: 12 }}>The OrcaSlicer printer used when 3DVault slices for this printer.</span>
+          </label>
           <label>
             Bed size
             <select value={form.printer_id ?? ""} onChange={(e) => setForm({ ...form, printer_id: e.target.value ? Number(e.target.value) : null })}>

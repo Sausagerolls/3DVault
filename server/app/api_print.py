@@ -2,8 +2,9 @@
 
 import asyncio
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
+from starlette.datastructures import UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -12,7 +13,8 @@ from .db import get_db
 from .drivers import DRIVERS, DriverError
 from .formats import print_format, sliced_3mf_info
 from .library import file_path
-from .models import File, Machine, Printer, PrintJob, User
+from . import services, slicer, toolpaths
+from .models import File, Machine, Model, Printer, PrintJob, SliceTask, User
 from .printing import ACTIVE, manager
 from .secretbox import seal
 
@@ -30,6 +32,7 @@ class MachineIn(BaseModel):
     secret: str | None = None  # None keeps the stored value on update
     printer_id: int | None = None
     enabled: bool = True
+    slicer_printer: str = ""
 
 
 def _machine_out(db: Session, m: Machine) -> dict:
@@ -50,6 +53,7 @@ def _machine_out(db: Session, m: Machine) -> dict:
         "bed": {"x": m.printer.x, "y": m.printer.y, "z": m.printer.z} if m.printer else None,
         "enabled": m.enabled,
         "needs_clear": m.needs_clear,
+        "slicer_printer": m.slicer_printer,
         "has_camera": bool(driver and driver.has_camera),
         "formats": sorted(driver.formats) if driver else [],
         "status": s.as_dict() if s else {"state": "offline", "message": "Disabled"},
@@ -68,6 +72,8 @@ def _check(db: Session, body: MachineIn, machine_id: int | None = None) -> None:
         raise HTTPException(409, "A printer with that name already exists")
     if body.printer_id is not None and db.get(Printer, body.printer_id) is None:
         raise HTTPException(400, "Unknown bed size profile")
+    if body.slicer_printer.strip() and slicer.available() and not slicer.profiles.find("machine", body.slicer_printer.strip()):
+        raise HTTPException(400, "Unknown slicer printer profile")
 
 
 @router.get("/machine-kinds")
@@ -110,6 +116,7 @@ def create_machine(body: MachineIn, db: Session = Depends(get_db), admin: User =
     m = Machine(
         name=body.name.strip(), kind=body.kind, host=body.host.strip(), serial=body.serial.strip(),
         secret=seal(body.secret or ""), printer_id=body.printer_id, enabled=body.enabled,
+        slicer_printer=body.slicer_printer.strip(),
     )
     db.add(m)
     db.commit()
@@ -122,7 +129,7 @@ def patch_machine(machine_id: int, body: MachineIn, db: Session = Depends(get_db
     m = _machine(db, machine_id)
     _check(db, body, machine_id)
     m.name, m.kind, m.host, m.serial = body.name.strip(), body.kind, body.host.strip(), body.serial.strip()
-    m.printer_id, m.enabled = body.printer_id, body.enabled
+    m.printer_id, m.enabled, m.slicer_printer = body.printer_id, body.enabled, body.slicer_printer.strip()
     if body.secret is not None:
         m.secret = seal(body.secret)
     db.commit()
@@ -230,6 +237,7 @@ def _file_print_info(db: Session, f: File) -> dict:
     return {
         "file_id": f.id,
         "format": fmt,
+        "sliceable": fmt is None and f.ext in SLICEABLE and slicer.available(),
         "plates": plates,
         "print_time": meta.get("print_time"),
         "filament_g": meta.get("filament_g"),
@@ -332,3 +340,173 @@ async def cancel_job(job_id: int, db: Session = Depends(get_db), user: User = De
     db.commit()
     manager.wake()
     return _job_out(j)
+
+
+# ---------------------------------------------------------------- slicing
+
+SLICEABLE = {"stl", "obj", "3mf", "step", "stp", "amf"}
+BED_TYPES = ["Cool Plate", "Engineering Plate", "High Temp Plate", "Textured PEI Plate", "Supertack Plate", "Smooth Cool Plate"]
+
+
+@router.get("/slicer")
+def slicer_status(user: User = Depends(current_user)):
+    return {"available": slicer.available()}
+
+
+@router.get("/slicer/printers")
+def slicer_printers(q: str = "", limit: int = 50, user: User = Depends(current_user)):
+    words = q.lower().split()
+    found = [p for p in slicer.profiles.printers() if all(w in p["name"].lower() for w in words)]
+    return found[: min(limit, 500)]
+
+
+@router.get("/slicer/options")
+def slicer_options(machine_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    """Process and filament profiles, plate types and defaults for slicing on a printer."""
+    m = _machine(db, machine_id)
+    if not slicer.available():
+        raise HTTPException(409, "Slicing isn't available on this server")
+    if not m.slicer_printer:
+        raise HTTPException(409, f"{m.name} has no slicer profile yet. An admin can choose one in Settings › Printers.")
+    try:
+        machine = slicer.profiles.flatten("machine", m.slicer_printer)
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+    model = slicer.profiles.machine_model(m.slicer_printer)
+    unsupported = set(str(model.get("not_support_bed_type", "")).split(";")) - {""}
+    process = machine.get("default_print_profile", "")
+    filament = (machine.get("default_filament_profile") or [""])[0]
+    proc = slicer.profiles.for_printer("process", m.slicer_printer)
+    defaults = {}
+    if any(p["name"] == process for p in proc):
+        flat = slicer.profiles.flatten("process", process)
+        defaults = {
+            "layer_height": _num(flat.get("layer_height")),
+            "sparse_infill_density": _num(str(flat.get("sparse_infill_density", "")).rstrip("%")),
+            "wall_loops": _num(flat.get("wall_loops")),
+            "enable_support": str(flat.get("enable_support", "0")) == "1",
+            "support_type": flat.get("support_type", "normal(auto)"),
+            "brim_type": flat.get("brim_type", "auto_brim"),
+        }
+    return {
+        "printer": m.slicer_printer,
+        "processes": proc,
+        "filaments": slicer.profiles.for_printer("filament", m.slicer_printer),
+        "bed_types": [b for b in BED_TYPES if b not in unsupported],
+        "default_process": process,
+        "default_filament": filament,
+        "default_bed_type": model.get("default_bed_type", ""),
+        "defaults": defaults,
+    }
+
+
+def _num(v):
+    try:
+        return float(v[0] if isinstance(v, list) else v)
+    except (TypeError, ValueError, IndexError):
+        return None
+
+
+@router.post("/slicer/import")
+async def import_profiles(request: Request, admin: User = Depends(require_admin)):
+    """Import presets exported from OrcaSlicer or Bambu Studio (.json, or a zip / .orca_printer / .orca_filament / .bbscfg bundle)."""
+    form = await request.form()
+    names = []
+    for up in form.getlist("files"):
+        if isinstance(up, UploadFile) and up.filename:
+            try:
+                names += await asyncio.to_thread(slicer.import_profiles, up.filename, await up.read())
+            except (ValueError, KeyError) as e:
+                raise HTTPException(400, f"{up.filename}: not a slicer preset ({e})")
+    if not names:
+        raise HTTPException(400, "No printer, process or filament presets found in the upload")
+    return {"imported": names}
+
+
+class SliceIn(BaseModel):
+    file_ids: list[int]
+    machine_id: int
+    process: str
+    filaments: list[str] = []
+    overrides: dict = {}
+
+
+def _slice_out(t: SliceTask) -> dict:
+    return {
+        "id": t.id, "model_id": t.model_id, "machine_id": t.machine_id, "file_ids": t.file_ids,
+        "process": t.process_profile, "filaments": t.filament_profiles, "overrides": t.overrides,
+        "state": t.state, "error": t.error, "output_file_id": t.output_file_id,
+        "created_at": t.created_at, "started_at": t.started_at, "finished_at": t.finished_at,
+    }
+
+
+@router.post("/slices")
+def create_slice(body: SliceIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    if not slicer.available():
+        raise HTTPException(409, "Slicing isn't available on this server")
+    m = _machine(db, body.machine_id)
+    if not m.slicer_printer:
+        raise HTTPException(409, f"{m.name} has no slicer profile yet")
+    files = [db.get(File, i) for i in body.file_ids]
+    if not files or any(f is None for f in files):
+        raise HTTPException(404, "File not found")
+    if len({f.model_id for f in files}) != 1 or files[0].model.deleted_at is not None:
+        raise HTTPException(400, "Files must belong to one model")
+    if any(f.ext not in SLICEABLE for f in files):
+        raise HTTPException(400, "Only STL, OBJ, 3MF and STEP files can be sliced")
+    if len(files) > 1 and any(f.ext == "3mf" for f in files):
+        raise HTTPException(400, "Slice a 3MF project on its own")
+    if not slicer.profiles.find("process", body.process):
+        raise HTTPException(400, "Unknown process profile")
+    for name in body.filaments:
+        if not slicer.profiles.find("filament", name):
+            raise HTTPException(400, f"Unknown filament profile: {name}")
+    t = SliceTask(
+        user_id=user.id, model_id=files[0].model_id, machine_id=m.id, file_ids=body.file_ids,
+        printer_profile=m.slicer_printer, process_profile=body.process,
+        filament_profiles=body.filaments, overrides=body.overrides,
+    )
+    db.add(t)
+    db.flush()
+    services.enqueue(db, "slice", slice_id=t.id)
+    db.commit()
+    return _slice_out(t)
+
+
+@router.get("/slices/{slice_id}")
+def get_slice(slice_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    t = db.get(SliceTask, slice_id)
+    if t is None:
+        raise HTTPException(404)
+    out = _slice_out(t)
+    if t.state == "queued":
+        # Position among slices waiting, so the app can say "2 ahead".
+        out["ahead"] = db.query(SliceTask).filter(SliceTask.state.in_(("queued", "slicing")), SliceTask.id < t.id).count()
+    return out
+
+
+@router.get("/files/{file_id}/toolpaths")
+async def toolpath_summary(file_id: int, plate: int = 1, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    data = await _toolpaths(db, file_id, plate)
+    return toolpaths.summary(data)
+
+
+@router.get("/files/{file_id}/toolpaths/{index}")
+async def toolpath_layer(file_id: int, index: int, plate: int = 1, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    data = await _toolpaths(db, file_id, plate)
+    try:
+        return toolpaths.layer(data, index)
+    except IndexError:
+        raise HTTPException(404, "No such layer")
+
+
+async def _toolpaths(db: Session, file_id: int, plate: int) -> dict:
+    f = db.get(File, file_id)
+    if f is None:
+        raise HTTPException(404)
+    if print_format(f.rel_path, f.meta) is None and f.ext != "3mf":
+        raise HTTPException(400, "Not a sliced file")
+    try:
+        return await asyncio.to_thread(toolpaths.load, f.id, file_path(f), plate)
+    except KeyError:
+        raise HTTPException(404, "That plate isn't sliced in this file")

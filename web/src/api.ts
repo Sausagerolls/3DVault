@@ -75,6 +75,7 @@ export type Machine = {
   printer_id: number | null;
   enabled: boolean;
   needs_clear: boolean;
+  slicer_printer: string;
   status: { state: string; message?: string };
   queued: number;
 };

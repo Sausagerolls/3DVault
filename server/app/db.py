@@ -38,6 +38,7 @@ def create_schema() -> None:
     from . import models  # noqa: F401  register tables
 
     Base.metadata.create_all(engine)
+    _add_missing_columns()
     _ensure_autoincrement([Base.metadata.tables["models"], Base.metadata.tables["files"]])
     with engine.begin() as conn:
         conn.execute(
@@ -47,6 +48,27 @@ def create_schema() -> None:
                 "tokenize='unicode61 remove_diacritics 2')"
             )
         )
+
+
+def _add_missing_columns() -> None:
+    """Add columns that newer versions define on existing tables. create_all only makes new tables."""
+    from sqlalchemy import inspect
+
+    insp = inspect(engine)
+    with engine.begin() as conn:
+        for table in Base.metadata.sorted_tables:
+            if not insp.has_table(table.name):
+                continue
+            have = {c["name"] for c in insp.get_columns(table.name)}
+            for col in table.columns:
+                if col.name in have:
+                    continue
+                ddl = col.type.compile(dialect=engine.dialect)
+                default = col.default.arg if col.default is not None and not callable(col.default.arg) else None
+                if isinstance(default, bool):
+                    default = int(default)
+                clause = f" DEFAULT {default!r}" if default is not None else ""
+                conn.execute(text(f'ALTER TABLE "{table.name}" ADD COLUMN "{col.name}" {ddl}{clause}'))
 
 
 def _ensure_autoincrement(tables) -> None:

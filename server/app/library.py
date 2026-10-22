@@ -57,9 +57,12 @@ def unique_rel_path(model: Model, rel: str) -> str:
     if rel not in existing and not (model_dir(model) / rel).exists():
         return rel
     p = Path(rel)
+    # Keep compound extensions whole: printers only accept "x (2).gcode.3mf", not "x.gcode (2).3mf".
+    suffix = ".gcode.3mf" if p.name.lower().endswith(".gcode.3mf") else p.suffix
+    stem = p.name[: len(p.name) - len(suffix)]
     n = 2
     while True:
-        cand = str(p.with_name(f"{p.stem} ({n}){p.suffix}"))
+        cand = str(p.with_name(f"{stem} ({n}){suffix}"))
         if cand not in existing and not (model_dir(model) / cand).exists():
             return cand
         n += 1

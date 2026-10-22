@@ -203,6 +203,7 @@ struct StateBadge: View {
         case "queued": "Queued"
         case "uploading": "Sending"
         case "cancelled": "Cancelled"
+        case "needs_clear": "Clear bed"
         default: "Offline"
         }
     }
@@ -211,7 +212,7 @@ struct StateBadge: View {
         switch state {
         case "idle", "finished": .green
         case "printing", "preparing", "uploading": .blue
-        case "paused", "queued": .orange
+        case "paused", "queued", "needs_clear": .orange
         case "failed": .red
         default: .gray
         }
