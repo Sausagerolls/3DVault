@@ -29,6 +29,7 @@ export default function Settings() {
         {tab === "Printers" && (
           <>
             {user.role === "admin" && <Machines />}
+            {user.role === "admin" && <PushKey />}
             <Printers />
           </>
         )}
@@ -502,6 +503,53 @@ function Machines() {
             </button>
             <button onClick={() => setForm(null)}>Cancel</button>
           </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ---------------------------------------------------------------- push notifications */
+
+function PushKey() {
+  const cfg = useQuery({ queryKey: ["push-config"], queryFn: () => api<{ configured: boolean; key_id: string; team_id: string }>("/push/config") });
+  const run = useRun();
+  const inv = useInvalidate();
+  const [keyId, setKeyId] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  return (
+    <section className="panel col" style={{ marginBottom: 16 }}>
+      <h2>Print notifications</h2>
+      <p className="dim" style={{ margin: 0 }}>
+        The iPhone app shows a Live Activity while a print runs and a notification when it ends. This needs an Apple Push Notifications key
+        (.p8) from developer.apple.com › Certificates, Identifiers &amp; Profiles › Keys. The key stays on this server.
+      </p>
+      {cfg.data?.configured ? (
+        <div className="row" style={{ gap: 8 }}>
+          <span>
+            Key <code>{cfg.data.key_id}</code> is set up.
+          </span>
+          <span className="spacer" />
+          <button className="small danger" onClick={() => run(() => api("/push/config", { method: "DELETE" })).then(() => inv("push-config"))}>
+            Remove key
+          </button>
+        </div>
+      ) : (
+        <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+          <input type="file" accept=".p8" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          <input placeholder="Key ID" value={keyId} onChange={(e) => setKeyId(e.target.value)} style={{ width: 140 }} />
+          <button
+            className="small primary"
+            disabled={!file || !keyId}
+            onClick={async () => {
+              const form = new FormData();
+              form.append("key", file!);
+              form.append("key_id", keyId);
+              (await run(() => api("/push/config", { method: "POST", body: form }), "Notifications set up")) && inv("push-config");
+            }}
+          >
+            Save key
+          </button>
         </div>
       )}
     </section>

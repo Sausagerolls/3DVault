@@ -25,9 +25,11 @@ targets:
     dependencies:
       - package: VaultKit
       - target: 3DVaultShare
+      - target: 3DVaultWidgets
     entitlements:
       path: App/3DVault.entitlements
       properties:
+        aps-environment: development
         com.apple.security.application-groups: [group.com.3dvault.shared]
         keychain-access-groups: ["$(AppIdentifierPrefix)com.3dvault.shared"]
     info:
@@ -47,6 +49,11 @@ targets:
         NSLocalNetworkUsageDescription: 3DVault connects to your 3DVault server on the local network.
         NSCameraUsageDescription: Take photos of your prints to add to a model.
         NSPhotoLibraryUsageDescription: Add photos of your prints to a model.
+        NSSupportsLiveActivities: true
+        NSSupportsLiveActivitiesFrequentUpdates: true
+        CFBundleURLTypes:
+          - CFBundleURLName: com.3dvault.mac
+            CFBundleURLSchemes: [threedvault]
         KeychainGroup: "$(AppIdentifierPrefix)com.3dvault.shared"
         AppGroup: group.com.3dvault.shared
         LSSupportsOpeningDocumentsInPlace: false
@@ -98,5 +105,26 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.3dvault.mac.share
         PRODUCT_NAME: 3DVaultShare
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_FILE: NO
+
+  3DVaultWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - Widgets
+      - App/Services/PrintActivity.swift
+    info:
+      path: Widgets/Info.plist
+      properties:
+        CFBundleDisplayName: 3DVault
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.3dvault.mac.widgets
+        PRODUCT_NAME: 3DVaultWidgets
         TARGETED_DEVICE_FAMILY: "1,2"
         GENERATE_INFOPLIST_FILE: NO

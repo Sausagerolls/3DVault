@@ -3,6 +3,7 @@ import VaultKit
 
 @main
 struct VaultApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var state = AppState()
     @AppStorage(Appearance.key) private var appearance = Appearance.system
 
@@ -13,6 +14,11 @@ struct VaultApp: App {
                 .preferredColorScheme(appearance.colorScheme)
                 // "Open in 3DVault" from Files or another app.
                 .onOpenURL { url in
+                    // threedvault://model/<id> from the print Live Activity.
+                    if url.scheme == "threedvault", url.host() == "model", let id = Int(url.lastPathComponent) {
+                        state.openModel = id
+                        return
+                    }
                     guard url.isFileURL, state.client != nil else { return }
                     state.stageForUpload([url])
                 }
@@ -66,6 +72,12 @@ struct RootView: View {
             UploadSheet(urls: state.pendingUpload)
         }
         .modifier(Prompts())
+        .task(id: state.user?.id) {
+            if state.user != nil, state.client != nil { PushManager.shared.start(state: state) }
+            #if DEBUG
+            PushManager.shared.testActivity()
+            #endif
+        }
     }
 }
 

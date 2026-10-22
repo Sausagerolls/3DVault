@@ -13,3 +13,4 @@ fast-simplification==0.1.9
 pillow==11.1.0
 cryptography==44.0.0
 paho-mqtt==2.1.0
+h2==4.1.0

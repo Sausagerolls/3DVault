@@ -74,6 +74,12 @@ struct MainView: View {
                 }
             }
         }
+        .onChange(of: state.openModel) {
+            guard let id = state.openModel else { return }
+            state.openModel = nil
+            column = .detail
+            path = [id]
+        }
         .onChange(of: section) {
             // A nil selection means the user went back to the sidebar, so stay there.
             guard let section else { return }

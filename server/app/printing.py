@@ -10,6 +10,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+from . import notify
 from .db import session_scope
 from .drivers import DRIVERS, Driver, DriverError, MachineConfig, PrintRequest, Status
 from .library import file_path
@@ -145,6 +146,7 @@ class PrintManager:
                 active.state = "paused" if s.state == "paused" else "printing"
                 active.progress = s.progress
                 active.layer, active.total_layers, active.remaining_s = s.layer, s.total_layers, s.remaining_s
+                notify.progress(active)
             elif active.id in self._seen and s.state in ("finished", "failed", "idle"):
                 outcome = {"finished": "finished", "failed": "failed"}.get(s.state, "cancelled")
                 if outcome == "finished":
@@ -184,6 +186,8 @@ class PrintManager:
                 db.add(um)
             um.status = "printed" if outcome == "finished" else "failed"
         log.info("print job %s on printer %s %s", job.id, job.machine_id, outcome)
+        if job.started_at:
+            notify.ended(job)
 
     def _send(self, machine_id: int, job_id: int) -> None:
         error = ""
@@ -219,6 +223,7 @@ class PrintManager:
                 job.started_at = None  # never reached the bed, so it doesn't need clearing
             else:
                 job.state = "printing"
+                notify.started(job)
         self.wake()
 
 

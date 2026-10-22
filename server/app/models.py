@@ -319,3 +319,28 @@ class SliceTask(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class PushDevice(Base):
+    """An iPhone or iPad that wants print notifications, with its Live Activity push-to-start token."""
+
+    __tablename__ = "push_devices"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    token: Mapped[str] = mapped_column(String(200), unique=True)
+    # sandbox for development builds, production for TestFlight and the App Store
+    environment: Mapped[str] = mapped_column(String(16), default="production")
+    start_token: Mapped[str] = mapped_column(String(200), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class LiveActivity(Base):
+    """A running Live Activity for a print job on one device."""
+
+    __tablename__ = "live_activities"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    job_id: Mapped[int] = mapped_column(ForeignKey("print_jobs.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    token: Mapped[str] = mapped_column(String(200), unique=True)
+    environment: Mapped[str] = mapped_column(String(16), default="production")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

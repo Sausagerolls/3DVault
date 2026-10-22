@@ -13,17 +13,22 @@
 		289A5E30B43867F4E0CCE3AB /* CategoryDrag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9528BDD6DBEDAF935827B26E /* CategoryDrag.swift */; };
 		2D89EB7F544A0FC1E027051D /* Organise.swift in Sources */ = {isa = PBXBuildFile; fileRef = E02E69B5D265777754B6C1BA /* Organise.swift */; };
 		44177DE9689AF9419966B7A5 /* VaultApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E91D361DFB7ECE7B1ACC2FB1 /* VaultApp.swift */; };
+		481DC61923DC8A1408FFC44B /* 3DVaultWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 518593DD28B53862031DF66C /* 3DVaultWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		4CF99A0BC10580621CA960E4 /* PrintActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ECA00596FF9DBFE44A6CD58 /* PrintActivity.swift */; };
 		5018F1568C3720856CF76360 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2861EE6BE3983FF4124F208D /* SettingsView.swift */; };
 		5B2C3EAB3A918EB400EB405A /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2B0673A2B0BE663C38C076C /* LibraryView.swift */; };
+		6204A6054BACA3E63B365BE5 /* PushManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BC5684FD0359C2EF3122367 /* PushManager.swift */; };
 		66F7DE06132A3BEA20F5F001 /* SharedConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C06FF6CB299A7BF70A9A3C3 /* SharedConfig.swift */; };
 		6752EF7CCCF996296E263CA5 /* 3DVaultShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 25FB67384B91E42FD5E47AF8 /* 3DVaultShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		7097706A3976A36D2F9D22E0 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AB4A5794CD974E927BAE09F /* ShareViewController.swift */; };
 		72D45949F323FBD7E9A2391C /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D360C5F2AF04DF78DAD41339 /* MainView.swift */; };
 		79AFB1FE8CFC8F369A2A1F57 /* VaultKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0F3E4B1752238C805527839B /* VaultKit */; };
+		931F0D87C829510C0A293E6E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = C9D60CCBAC07294727771F09 /* PrivacyInfo.xcprivacy */; };
 		9AA6F290AA5D64BD042ADABE /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB096020F5968AAD825AF0F /* LoginView.swift */; };
 		A1C9E57E42A97DF8AF1D4A55 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 57676A81AD5CDAB13D36633F /* PrivacyInfo.xcprivacy */; };
 		A7C096001A3FF4D52E3243B2 /* ThumbnailLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E7FFAF33780C807E378CE9 /* ThumbnailLoader.swift */; };
 		A9A0FDF25D9DB1498E729F70 /* VaultKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1B3062130EF3B37ACCD459D5 /* VaultKit */; };
+		AF4874802E9571033439E078 /* PrintActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ECA00596FF9DBFE44A6CD58 /* PrintActivity.swift */; };
 		B0983655ED5BA87498BEA1C0 /* UploadSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50D7A0E503827618FB0DE788 /* UploadSheet.swift */; };
 		B8CDC40A406464EB1C2AF448 /* PinStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C9B7AD712936FF78CBDE749 /* PinStore.swift */; };
 		BC73DF0A9D04D1C9C46C446F /* PrintSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82DAFBFBFBEF1277BE836F2F /* PrintSheet.swift */; };
@@ -33,6 +38,7 @@
 		DA2AC8384F16486CB141598F /* SharedConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C06FF6CB299A7BF70A9A3C3 /* SharedConfig.swift */; };
 		DA9CFC35D50AC2603D3DA4CC /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81361AA711F7175983107DB7 /* AppState.swift */; };
 		DE93438F3D6361AFC20675F5 /* PrintersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50E018070FA488BEB28E67B3 /* PrintersView.swift */; };
+		E539859091ECE47D7D09EB6E /* PrintActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 678CD052B84EC20C8FC1D779 /* PrintActivityWidget.swift */; };
 		F20A3A72DE1E89553B7F3995 /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 311C26001D01B9138E844719 /* Appearance.swift */; };
 		F2B9123F095B5484F989C4BD /* ModelDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A0134562588785D9E552922 /* ModelDetailView.swift */; };
 		FB4AB474E294975AB4A42554 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6DB27ACF8650626DD0449D9D /* Assets.xcassets */; };
@@ -46,6 +52,13 @@
 			remoteGlobalIDString = 24A6F0BDE7A7381C2DE0C6CB;
 			remoteInfo = 3DVaultShare;
 		};
+		FB0BFC1669D10E66FE50D766 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F57C7D2E3C2ADDE8E8688881 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D1E0A148E9093960D9B6AD3A;
+			remoteInfo = 3DVaultWidgets;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -56,6 +69,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				6752EF7CCCF996296E263CA5 /* 3DVaultShare.appex in Embed Foundation Extensions */,
+				481DC61923DC8A1408FFC44B /* 3DVaultWidgets.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -64,8 +78,10 @@
 
 /* Begin PBXFileReference section */
 		00D7E44E194A1663153F6F4E /* 3DVault.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = 3DVault.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		09D7E6253FA25FA7B25E7CFB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		0C06FF6CB299A7BF70A9A3C3 /* SharedConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedConfig.swift; sourceTree = "<group>"; };
 		146543F98888099A20FB665A /* BulkSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkSheet.swift; sourceTree = "<group>"; };
+		1BC5684FD0359C2EF3122367 /* PushManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushManager.swift; sourceTree = "<group>"; };
 		25FB67384B91E42FD5E47AF8 /* 3DVaultShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = 3DVaultShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		2861EE6BE3983FF4124F208D /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		2C9B7AD712936FF78CBDE749 /* PinStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinStore.swift; sourceTree = "<group>"; };
@@ -73,10 +89,13 @@
 		3390F7B3C86EC8802FFD7DE0 /* FileCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileCache.swift; sourceTree = "<group>"; };
 		50D7A0E503827618FB0DE788 /* UploadSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadSheet.swift; sourceTree = "<group>"; };
 		50E018070FA488BEB28E67B3 /* PrintersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintersView.swift; sourceTree = "<group>"; };
+		518593DD28B53862031DF66C /* 3DVaultWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = 3DVaultWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		57676A81AD5CDAB13D36633F /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		678CD052B84EC20C8FC1D779 /* PrintActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintActivityWidget.swift; sourceTree = "<group>"; };
 		6A0134562588785D9E552922 /* ModelDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDetailView.swift; sourceTree = "<group>"; };
 		6DB27ACF8650626DD0449D9D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6DCD548E1B93597E00866E88 /* VaultKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = VaultKit; path = ../VaultKit; sourceTree = SOURCE_ROOT; };
+		6ECA00596FF9DBFE44A6CD58 /* PrintActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintActivity.swift; sourceTree = "<group>"; };
 		73B3AC9CF665CE36F876AE98 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		81361AA711F7175983107DB7 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		82A4AE1F1A81BA244996E161 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
@@ -89,6 +108,7 @@
 		BEB096020F5968AAD825AF0F /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		C023B7AD05B2D843A4A35BEE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C88B06D115765B340A0BE9FA /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
+		C9D60CCBAC07294727771F09 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		D360C5F2AF04DF78DAD41339 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
 		D5A27FEADB0FD643CE3EDCE2 /* 3DVault.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = 3DVault.entitlements; sourceTree = "<group>"; };
 		E02E69B5D265777754B6C1BA /* Organise.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Organise.swift; sourceTree = "<group>"; };
@@ -124,6 +144,7 @@
 				CA88B0D6786DFE9063AD4172 /* App */,
 				36FB49CB2AAF51100144A1E8 /* Packages */,
 				92F147BA331D94D096BD4314 /* Share */,
+				BC757CCB9FA6F68DDD2BBB5F /* Widgets */,
 				8FD29159EA549F8969E91BBA /* Products */,
 			);
 			sourceTree = "<group>";
@@ -151,6 +172,7 @@
 			children = (
 				00D7E44E194A1663153F6F4E /* 3DVault.app */,
 				25FB67384B91E42FD5E47AF8 /* 3DVaultShare.appex */,
+				518593DD28B53862031DF66C /* 3DVaultWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -202,6 +224,16 @@
 			path = ..;
 			sourceTree = "<group>";
 		};
+		BC757CCB9FA6F68DDD2BBB5F /* Widgets */ = {
+			isa = PBXGroup;
+			children = (
+				09D7E6253FA25FA7B25E7CFB /* Info.plist */,
+				678CD052B84EC20C8FC1D779 /* PrintActivityWidget.swift */,
+				C9D60CCBAC07294727771F09 /* PrivacyInfo.xcprivacy */,
+			);
+			path = Widgets;
+			sourceTree = "<group>";
+		};
 		CA88B0D6786DFE9063AD4172 /* App */ = {
 			isa = PBXGroup;
 			children = (
@@ -222,6 +254,8 @@
 			children = (
 				3390F7B3C86EC8802FFD7DE0 /* FileCache.swift */,
 				2C9B7AD712936FF78CBDE749 /* PinStore.swift */,
+				6ECA00596FF9DBFE44A6CD58 /* PrintActivity.swift */,
+				1BC5684FD0359C2EF3122367 /* PushManager.swift */,
 				0C06FF6CB299A7BF70A9A3C3 /* SharedConfig.swift */,
 				F7E7FFAF33780C807E378CE9 /* ThumbnailLoader.swift */,
 			);
@@ -264,6 +298,7 @@
 			);
 			dependencies = (
 				E865E80C2270882B9F9BB393 /* PBXTargetDependency */,
+				3F629730AA118B3416E6F770 /* PBXTargetDependency */,
 			);
 			name = 3DVault;
 			packageProductDependencies = (
@@ -272,6 +307,24 @@
 			productName = 3DVault;
 			productReference = 00D7E44E194A1663153F6F4E /* 3DVault.app */;
 			productType = "com.apple.product-type.application";
+		};
+		D1E0A148E9093960D9B6AD3A /* 3DVaultWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3A8689620D327EE1A22FD895 /* Build configuration list for PBXNativeTarget "3DVaultWidgets" */;
+			buildPhases = (
+				7D61D47E717F746AFE7F151A /* Sources */,
+				05F2844FC9B0B01290EEC491 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = 3DVaultWidgets;
+			packageProductDependencies = (
+			);
+			productName = 3DVaultWidgets;
+			productReference = 518593DD28B53862031DF66C /* 3DVaultWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -287,6 +340,10 @@
 						ProvisioningStyle = Automatic;
 					};
 					C691A4C1C51E102D35C87BCD = {
+						DevelopmentTeam = J4UJD4Z33J;
+						ProvisioningStyle = Automatic;
+					};
+					D1E0A148E9093960D9B6AD3A = {
 						DevelopmentTeam = J4UJD4Z33J;
 						ProvisioningStyle = Automatic;
 					};
@@ -311,11 +368,20 @@
 			targets = (
 				C691A4C1C51E102D35C87BCD /* 3DVault */,
 				24A6F0BDE7A7381C2DE0C6CB /* 3DVaultShare */,
+				D1E0A148E9093960D9B6AD3A /* 3DVaultWidgets */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		05F2844FC9B0B01290EEC491 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				931F0D87C829510C0A293E6E /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		420FE3520C68BEB0C23B0994 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -362,8 +428,10 @@
 				F2B9123F095B5484F989C4BD /* ModelDetailView.swift in Sources */,
 				2D89EB7F544A0FC1E027051D /* Organise.swift in Sources */,
 				B8CDC40A406464EB1C2AF448 /* PinStore.swift in Sources */,
+				4CF99A0BC10580621CA960E4 /* PrintActivity.swift in Sources */,
 				BC73DF0A9D04D1C9C46C446F /* PrintSheet.swift in Sources */,
 				DE93438F3D6361AFC20675F5 /* PrintersView.swift in Sources */,
+				6204A6054BACA3E63B365BE5 /* PushManager.swift in Sources */,
 				5018F1568C3720856CF76360 /* SettingsView.swift in Sources */,
 				DA2AC8384F16486CB141598F /* SharedConfig.swift in Sources */,
 				14459896A884C6B712432A0E /* SidebarView.swift in Sources */,
@@ -373,9 +441,23 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7D61D47E717F746AFE7F151A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AF4874802E9571033439E078 /* PrintActivity.swift in Sources */,
+				E539859091ECE47D7D09EB6E /* PrintActivityWidget.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		3F629730AA118B3416E6F770 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D1E0A148E9093960D9B6AD3A /* 3DVaultWidgets */;
+			targetProxy = FB0BFC1669D10E66FE50D766 /* PBXContainerItemProxy */;
+		};
 		E865E80C2270882B9F9BB393 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 24A6F0BDE7A7381C2DE0C6CB /* 3DVaultShare */;
@@ -401,6 +483,23 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
+		};
+		4B54D0F90F562EEC23790CD2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.3dvault.mac.widgets;
+				PRODUCT_NAME = 3DVaultWidgets;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
 		};
 		61353CDC2096EADE04B89C3F /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -587,6 +686,23 @@
 			};
 			name = Debug;
 		};
+		E6D421DDB5F04C86678B3246 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.3dvault.mac.widgets;
+				PRODUCT_NAME = 3DVaultWidgets;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -595,6 +711,15 @@
 			buildConfigurations = (
 				A28F78266EE8A9839F9F050B /* Debug */,
 				495C4951ADA870E007B55CB3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		3A8689620D327EE1A22FD895 /* Build configuration list for PBXNativeTarget "3DVaultWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4B54D0F90F562EEC23790CD2 /* Debug */,
+				E6D421DDB5F04C86678B3246 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

@@ -35,6 +35,17 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.3dvault.mac</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>threedvault</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
@@ -54,6 +65,10 @@
 	<string>3DVault connects to your 3DVault server on the local network.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Add photos of your prints to a model.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
+	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchScreen</key>

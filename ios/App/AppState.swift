@@ -28,6 +28,8 @@ final class AppState {
     var share: ShareRequest?
     /// Shown while files download before sharing.
     var preparing: String?
+    /// A model to open, from a notification or Live Activity tap.
+    var openModel: Int?
     /// Bumped after any change so lists reload.
     var revision = 0
 
@@ -91,6 +93,7 @@ final class AppState {
     }
 
     func signOut() async {
+        await PushManager.shared.signedOut()
         await client?.logout()
         if let serverURL, let user { SharedConfig.forget(server: serverURL, username: user.username) }
         client = nil

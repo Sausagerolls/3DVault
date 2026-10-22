@@ -510,3 +510,88 @@ async def _toolpaths(db: Session, file_id: int, plate: int) -> dict:
         return await asyncio.to_thread(toolpaths.load, f.id, file_path(f), plate)
     except KeyError:
         raise HTTPException(404, "That plate isn't sliced in this file")
+
+
+# ---------------------------------------------------------------- push notifications
+
+
+class DeviceIn(BaseModel):
+    token: str
+    environment: str = "production"
+    start_token: str = ""
+
+
+@router.post("/push/devices", status_code=204)
+def register_device(body: DeviceIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    from .models import PushDevice
+
+    if body.environment not in ("production", "sandbox") or not body.token.strip():
+        raise HTTPException(400, "Bad device token")
+    d = db.query(PushDevice).filter(PushDevice.token == body.token).first() or PushDevice(token=body.token)
+    d.user_id, d.environment = user.id, body.environment
+    if body.start_token:
+        d.start_token = body.start_token
+    db.add(d)
+    db.commit()
+
+
+@router.delete("/push/devices/{token}", status_code=204)
+def unregister_device(token: str, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    from .models import PushDevice
+
+    db.query(PushDevice).filter(PushDevice.token == token, PushDevice.user_id == user.id).delete()
+    db.commit()
+
+
+class ActivityIn(BaseModel):
+    job_id: int
+    token: str
+    environment: str = "production"
+
+
+@router.post("/push/activities", status_code=204)
+def register_activity(body: ActivityIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    """A Live Activity for a job started on a device and has its update token."""
+    from .models import LiveActivity
+
+    if db.get(PrintJob, body.job_id) is None:
+        raise HTTPException(404)
+    a = db.query(LiveActivity).filter(LiveActivity.token == body.token).first() or LiveActivity(token=body.token)
+    a.job_id, a.user_id, a.environment = body.job_id, user.id, body.environment
+    db.add(a)
+    db.commit()
+
+
+@router.get("/push/config")
+def push_config(admin: User = Depends(require_admin)):
+    from . import apns
+
+    cfg = {}
+    if apns.configured():
+        import json
+
+        cfg = json.loads(apns.config_path().read_text())
+    return {"configured": apns.configured(), "key_id": cfg.get("key_id", ""), "team_id": cfg.get("team_id", apns.TEAM_ID)}
+
+
+@router.post("/push/config")
+async def set_push_config(request: Request, admin: User = Depends(require_admin)):
+    """Upload the Apple Push Notifications .p8 key with its key id."""
+    from . import apns
+
+    form = await request.form()
+    key, key_id = form.get("key"), str(form.get("key_id") or "").strip()
+    if not isinstance(key, UploadFile) or not key_id:
+        raise HTTPException(400, "Choose the .p8 key file and enter its key ID")
+    try:
+        apns.save_key(await key.read(), key_id, str(form.get("team_id") or apns.TEAM_ID))
+    except ValueError:
+        raise HTTPException(400, "That isn't an Apple .p8 key file")
+    return push_config(admin)
+
+
+@router.delete("/push/config", status_code=204)
+def delete_push_config(admin: User = Depends(require_admin)):
+    from . import apns
+
+    apns.remove_key()

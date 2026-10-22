@@ -216,6 +216,23 @@ extension APIClient {
 
     public func cameraURL(machine: Int) -> URL { url("machines/\(machine)/camera") }
 
+    /// environment is "sandbox" for development builds and "production" otherwise.
+    public func registerPushDevice(token: String, environment: String, startToken: String?) async throws {
+        var body: [String: JSONValue] = ["token": .string(token), "environment": .string(environment)]
+        if let startToken { body["start_token"] = .string(startToken) }
+        _ = try await send("push/devices", method: "POST", json: body)
+    }
+
+    public func unregisterPushDevice(token: String) async throws {
+        _ = try await send("push/devices/\(token)", method: "DELETE")
+    }
+
+    public func registerLiveActivity(jobId: Int, token: String, environment: String) async throws {
+        _ = try await send("push/activities", method: "POST", json: [
+            "job_id": .number(Double(jobId)), "token": .string(token), "environment": .string(environment),
+        ])
+    }
+
     public func slicerOptions(machineId: Int) async throws -> SlicerOptions {
         try await get("slicer/options", query: [.init(name: "machine_id", value: String(machineId))])
     }

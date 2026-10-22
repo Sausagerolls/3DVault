@@ -457,6 +457,7 @@ struct PrintSheet: View {
         Task {
             do {
                 let job = try await client.print(fileId: fileId, machineId: machineId, plate: plate, amsMapping: ams)
+                if !willQueue { PushManager.shared.printStarted(job) }
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
                 state.show(willQueue ? "Added to the \(job.machineName) queue" : "Sending to \(job.machineName)")
                 dismiss()
