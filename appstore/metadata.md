@@ -51,6 +51,11 @@ UPLOAD FROM ANYWHERE
 • Duplicate files are detected and skipped
 
 PRINT
+• Send prints straight to Bambu Lab (LAN mode), Klipper, Prusa and OctoPrint printers
+• Your server slices STL, 3MF and STEP files with OrcaSlicer, with a layer-by-layer preview
+• Watch progress, temperatures and the printer camera, and pause or stop prints
+• Live Activity on the Lock Screen and Dynamic Island while a print runs (iPhone)
+• A queue per printer that waits until you've cleared the bed
 • Open models in Bambu Studio, OrcaSlicer, PrusaSlicer or Cura with one click (Mac)
 • Send files to your Mac with AirDrop (iPhone and iPad)
 • Keep models offline for when you're away from your server
@@ -79,5 +84,7 @@ Paste this into App Review Information > Notes, after filling in the demo detail
 > NSAllowsArbitraryLoads: users run the server on their own home network or VPN, usually at a plain-HTTP IP address or local hostname that cannot have a public TLS certificate. The app only connects to the server address the user enters.
 >
 > To test sharing on iPhone/iPad: open an STL file in Files, tap Share, and choose 3DVault.
+>
+> To test printing without a 3D printer: the demo server has a simulated printer called "Demo A1 mini". Open any model, tap Print, keep the default settings and tap Slice, then Print. The Printers screen (in the sidebar) shows the simulated print's progress and camera, and Pause/Stop work. After a print finishes, tap Bed Cleared to let the next queued print start. Real printers are added by the server owner on their own network.
 
 Also fill in the sign-in fields under "Sign-in required" with the same demo account.
