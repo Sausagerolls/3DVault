@@ -62,10 +62,16 @@ struct MainView: View {
             SidebarView(section: $section)
         } detail: {
             NavigationStack(path: $path) {
-                LibraryView(section: shown, library: library, opened: path.last) { path = [$0] }
-                    .navigationDestination(for: Int.self) { id in
-                        ModelDetailView(modelId: id, library: library)
+                Group {
+                    if shown == .printers {
+                        PrintersView { path = [$0] }
+                    } else {
+                        LibraryView(section: shown, library: library, opened: path.last) { path = [$0] }
                     }
+                }
+                .navigationDestination(for: Int.self) { id in
+                    ModelDetailView(modelId: id, library: library)
+                }
             }
         }
         .onChange(of: section) {
@@ -79,6 +85,8 @@ struct MainView: View {
         .task {
             // Simulator testing: VAULT_TEST_MODEL=<id> opens that model at launch.
             if let id = ProcessInfo.processInfo.environment["VAULT_TEST_MODEL"].flatMap(Int.init) { path = [id] }
+            // VAULT_TEST_SECTION=printers opens the Printers screen.
+            if ProcessInfo.processInfo.environment["VAULT_TEST_SECTION"] == "printers" { section = .printers }
         }
         #endif
     }

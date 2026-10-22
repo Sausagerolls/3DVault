@@ -194,3 +194,57 @@ def gcode_metadata(path: Path) -> dict:
     else:
         meta.pop("print_time_s", None)
     return meta
+
+
+# ---------------------------------------------------------------- sliced files
+
+_PLATE_GCODE = re.compile(r"^Metadata/plate_(\d+)\.gcode$")
+
+
+def sliced_3mf_info(path: Path) -> dict | None:
+    """Plates in a sliced Bambu/Orca .gcode.3mf, with time, weight and filaments per plate.
+
+    Returns None for a 3MF that carries no G-code (an unsliced project or a plain mesh).
+    """
+    from lxml import etree
+
+    try:
+        with zipfile.ZipFile(path) as z:
+            names = z.namelist()
+            plates = sorted(int(m.group(1)) for n in names if (m := _PLATE_GCODE.match(n)))
+            if not plates:
+                return None
+            info = {p: {"index": p, "time_s": None, "weight_g": None, "filaments": []} for p in plates}
+            if "Metadata/slice_info.config" in names:
+                root = etree.fromstring(z.read("Metadata/slice_info.config"))
+                for plate in root.iter("plate"):
+                    meta = {m.get("key"): m.get("value") for m in plate.findall("metadata")}
+                    idx = int(meta.get("index", 0) or 0)
+                    if idx not in info:
+                        continue
+                    if meta.get("prediction"):
+                        info[idx]["time_s"] = int(float(meta["prediction"]))
+                    if meta.get("weight"):
+                        info[idx]["weight_g"] = round(float(meta["weight"]), 2)
+                    info[idx]["filaments"] = [
+                        {
+                            "id": int(f.get("id", 0) or 0),
+                            "type": f.get("type", ""),
+                            "color": f.get("color", ""),
+                            "used_g": float(f.get("used_g", 0) or 0),
+                        }
+                        for f in plate.findall("filament")
+                    ]
+    except (zipfile.BadZipFile, etree.XMLSyntaxError, ValueError, KeyError):
+        return None
+    return {"plates": [info[p] for p in plates]}
+
+
+def print_format(rel_path: str, meta: dict | None) -> str | None:
+    """How a file can be sent to a printer without slicing: gcode, bgcode or gcode3mf."""
+    ext = file_ext(rel_path)
+    if ext in ("gcode", "bgcode"):
+        return ext
+    if ext == "3mf" and (meta or {}).get("sliced"):
+        return "gcode3mf"
+    return None

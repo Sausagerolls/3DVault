@@ -26,11 +26,13 @@
 		A9A0FDF25D9DB1498E729F70 /* VaultKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1B3062130EF3B37ACCD459D5 /* VaultKit */; };
 		B0983655ED5BA87498BEA1C0 /* UploadSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50D7A0E503827618FB0DE788 /* UploadSheet.swift */; };
 		B8CDC40A406464EB1C2AF448 /* PinStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C9B7AD712936FF78CBDE749 /* PinStore.swift */; };
+		BC73DF0A9D04D1C9C46C446F /* PrintSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82DAFBFBFBEF1277BE836F2F /* PrintSheet.swift */; };
 		CE6FC820B1DC36B1A8DAF007 /* BulkSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 146543F98888099A20FB665A /* BulkSheet.swift */; };
 		CF755333D94F7E310EBD91C1 /* ModelActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B510AB899FF17418EC795E8F /* ModelActions.swift */; };
 		D426E6BCB162A9725878F462 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 82A4AE1F1A81BA244996E161 /* PrivacyInfo.xcprivacy */; };
 		DA2AC8384F16486CB141598F /* SharedConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C06FF6CB299A7BF70A9A3C3 /* SharedConfig.swift */; };
 		DA9CFC35D50AC2603D3DA4CC /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81361AA711F7175983107DB7 /* AppState.swift */; };
+		DE93438F3D6361AFC20675F5 /* PrintersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50E018070FA488BEB28E67B3 /* PrintersView.swift */; };
 		F20A3A72DE1E89553B7F3995 /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 311C26001D01B9138E844719 /* Appearance.swift */; };
 		F2B9123F095B5484F989C4BD /* ModelDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A0134562588785D9E552922 /* ModelDetailView.swift */; };
 		FB4AB474E294975AB4A42554 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6DB27ACF8650626DD0449D9D /* Assets.xcassets */; };
@@ -70,6 +72,7 @@
 		311C26001D01B9138E844719 /* Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Appearance.swift; sourceTree = "<group>"; };
 		3390F7B3C86EC8802FFD7DE0 /* FileCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileCache.swift; sourceTree = "<group>"; };
 		50D7A0E503827618FB0DE788 /* UploadSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadSheet.swift; sourceTree = "<group>"; };
+		50E018070FA488BEB28E67B3 /* PrintersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintersView.swift; sourceTree = "<group>"; };
 		57676A81AD5CDAB13D36633F /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		6A0134562588785D9E552922 /* ModelDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDetailView.swift; sourceTree = "<group>"; };
 		6DB27ACF8650626DD0449D9D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -77,6 +80,7 @@
 		73B3AC9CF665CE36F876AE98 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		81361AA711F7175983107DB7 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		82A4AE1F1A81BA244996E161 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		82DAFBFBFBEF1277BE836F2F /* PrintSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintSheet.swift; sourceTree = "<group>"; };
 		9528BDD6DBEDAF935827B26E /* CategoryDrag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryDrag.swift; sourceTree = "<group>"; };
 		9A709ACBF6C3491DFFE272E2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		9AB4A5794CD974E927BAE09F /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
@@ -172,6 +176,8 @@
 				D360C5F2AF04DF78DAD41339 /* MainView.swift */,
 				B510AB899FF17418EC795E8F /* ModelActions.swift */,
 				6A0134562588785D9E552922 /* ModelDetailView.swift */,
+				50E018070FA488BEB28E67B3 /* PrintersView.swift */,
+				82DAFBFBFBEF1277BE836F2F /* PrintSheet.swift */,
 				2861EE6BE3983FF4124F208D /* SettingsView.swift */,
 				73B3AC9CF665CE36F876AE98 /* SidebarView.swift */,
 				50D7A0E503827618FB0DE788 /* UploadSheet.swift */,
@@ -356,6 +362,8 @@
 				F2B9123F095B5484F989C4BD /* ModelDetailView.swift in Sources */,
 				2D89EB7F544A0FC1E027051D /* Organise.swift in Sources */,
 				B8CDC40A406464EB1C2AF448 /* PinStore.swift in Sources */,
+				BC73DF0A9D04D1C9C46C446F /* PrintSheet.swift in Sources */,
+				DE93438F3D6361AFC20675F5 /* PrintersView.swift in Sources */,
 				5018F1568C3720856CF76360 /* SettingsView.swift in Sources */,
 				DA2AC8384F16486CB141598F /* SharedConfig.swift in Sources */,
 				14459896A884C6B712432A0E /* SidebarView.swift in Sources */,

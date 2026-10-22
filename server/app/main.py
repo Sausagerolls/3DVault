@@ -1,12 +1,14 @@
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import api_auth, api_misc, api_models
+from . import api_auth, api_misc, api_models, api_print
 from .config import settings
 from .db import create_schema, init_engine
+from .printing import manager
 from .seed import seed_defaults
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s api %(levelname)s %(message)s")
@@ -15,10 +17,19 @@ init_engine()
 create_schema()
 seed_defaults()
 
-app = FastAPI(title="3DVault", version="1.0.0", docs_url="/api/docs", openapi_url="/api/openapi.json")
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    manager.start()
+    yield
+
+
+app = FastAPI(title="3DVault", version="1.0.0", docs_url="/api/docs", openapi_url="/api/openapi.json", lifespan=lifespan)
 app.include_router(api_auth.router)
 app.include_router(api_models.router)
 app.include_router(api_misc.router)
+app.include_router(api_print.router)
 
 
 @app.get("/api/health")

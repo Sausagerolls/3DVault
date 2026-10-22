@@ -16,6 +16,7 @@ struct ModelDetailView: View {
     @State private var addingFiles = false
     @State private var photoItems: [PhotosPickerItem] = []
     @State private var showCamera = false
+    @State private var printing: PrintTarget?
     @FocusState private var notesFocused: Bool
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -31,7 +32,13 @@ struct ModelDetailView: View {
                 ProgressView()
             }
         }
-        .task { await load() }
+        .task {
+            await load()
+            #if DEBUG
+            // Simulator testing: VAULT_TEST_PRINT=1 opens the print sheet.
+            if ProcessInfo.processInfo.environment["VAULT_TEST_PRINT"] == "1", model != nil { printing = PrintTarget(fileId: nil) }
+            #endif
+        }
         .task(id: model?.files.contains { $0.status == "pending" }) {
             // Poll while the server is still generating previews.
             while model?.files.contains(where: { $0.status == "pending" }) == true, !Task.isCancelled {
@@ -121,6 +128,7 @@ struct ModelDetailView: View {
             }
         }
         .fullScreenCover(isPresented: $fullScreen) { fullScreenViewer(m) }
+        .sheet(item: $printing) { t in PrintSheet(model: m, initialFile: m.files.first { $0.id == t.fileId }) }
         .fileImporter(isPresented: $addingFiles, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
             guard case .success(let urls) = result else { return }
             let dir = SharedConfig.stagingFolder()
@@ -268,14 +276,33 @@ struct ModelDetailView: View {
 
     private func actions(_ m: ModelDetail) -> some View {
         let pinned = state.pins.isPinned(m.id)
+        let canPrint = !readOnly && !printableFiles(m).isEmpty
+        // With Print in the row, a phone only has room for icons on the other buttons.
+        let iconsOnly = canPrint && sizeClass == .compact
         return HStack(spacing: 10) {
+            if canPrint {
+                Button { printing = PrintTarget(fileId: nil) } label: {
+                    Label("Print", systemImage: "printer").lineLimit(1).frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.glassProminent)
+            }
             Button { Task { await ModelActions.share([m.id], state: state) } } label: {
-                Label("Share", systemImage: "square.and.arrow.up").lineLimit(1).frame(maxWidth: .infinity)
+                if iconsOnly {
+                    Image(systemName: "square.and.arrow.up")
+                } else {
+                    Label("Share", systemImage: "square.and.arrow.up").lineLimit(1).frame(maxWidth: .infinity)
+                }
             }
-            .buttonStyle(.glassProminent)
+            .accessibilityLabel("Share")
+            .modifier(GlassStyle(prominent: !canPrint))
             Button { Task { await ModelActions.share([m.id], airDrop: true, state: state) } } label: {
-                Label(sizeClass == .compact ? "To Mac" : "Send to Mac", systemImage: "laptopcomputer.and.arrow.down").lineLimit(1).frame(maxWidth: .infinity)
+                if iconsOnly {
+                    Image(systemName: "laptopcomputer.and.arrow.down")
+                } else {
+                    Label(sizeClass == .compact ? "To Mac" : "Send to Mac", systemImage: "laptopcomputer.and.arrow.down").lineLimit(1).frame(maxWidth: .infinity)
+                }
             }
+            .accessibilityLabel("Send to Mac")
             .buttonStyle(.glass)
             Button { Task { await ModelActions.togglePin([m.id], state: state) } } label: {
                 if state.pins.downloading.contains(m.id) {
@@ -397,6 +424,9 @@ struct ModelDetailView: View {
                     Button { Task { await ModelActions.shareFile(f, modelId: m.id, airDrop: true, state: state) } } label: { Label("Send to Mac", systemImage: "laptopcomputer.and.arrow.down") }
                     if f.hasThumb && !readOnly {
                         Button { patch(["cover_file_id": .number(Double(f.id))]) } label: { Label("Use as Cover", systemImage: "photo") }
+                    }
+                    if !readOnly && printableFiles(m).contains(where: { $0.id == f.id }) {
+                        Button { printing = PrintTarget(fileId: f.id) } label: { Label("Print…", systemImage: "printer") }
                     }
                     if !readOnly && state.canDeleteFiles(m) {
                         Button(role: .destructive) { state.deleteFile(f) { await load() } } label: { Label("Delete…", systemImage: "trash") }
@@ -643,5 +673,24 @@ struct CameraPicker: UIViewControllerRepresentable {
         }
 
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) { parent.dismiss() }
+    }
+}
+
+/// Which file the print sheet opens with; nil lets the sheet choose.
+struct PrintTarget: Identifiable {
+    let id = UUID()
+    let fileId: Int?
+}
+
+/// Prominent glass for the main action in a row, plain glass otherwise.
+private struct GlassStyle: ViewModifier {
+    let prominent: Bool
+
+    func body(content: Content) -> some View {
+        if prominent {
+            content.buttonStyle(.glassProminent)
+        } else {
+            content.buttonStyle(.glass)
+        }
     }
 }

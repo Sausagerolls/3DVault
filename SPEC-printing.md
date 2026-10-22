@@ -34,9 +34,9 @@ Send models from 3DVault straight to a printer, slicing on the server when neede
 ## Server
 
 ### Data
-- `Printer` gains: `kind` (bambu / moonraker / prusalink / octoprint / simulated), `host`, `serial`, `secret` (access code or API key, encrypted at rest with a key in `/data`), `orca_printer_profile`, `has_camera`, `enabled`. The existing bed size fields stay.
+- `Machine` (table `machines`): a connected printer with `kind` (bambu / moonraker / prusalink / octoprint / simulated), `host`, `serial`, `secret` (access code or API key, encrypted at rest with a key in `/data/secret.key`), an optional link to a `Printer` bed-size profile, `enabled` and `needs_clear`. `Printer` stays as the bed-size profile used by the fits filter. Orca printer profile is added in phase 3.
 - `SlicerProfile`: kind (printer / process / filament), name, source (vendor / imported), Orca JSON, owner.
-- `PrintJob`: model, source file, sliced file, printer, user, settings JSON, AMS mapping, state (queued / slicing / sliced / uploading / printing / paused / finished / failed / cancelled), progress, layer, times, error, created/started/finished.
+- `PrintJob` (table `print_jobs`): model, source file, printer, user, plate, options JSON (including the AMS mapping), state (queued / slicing / sliced / uploading / printing / paused / finished / failed / cancelled), progress, layer, times, error, created/started/finished.
 - `PushDevice`: user, APNs token, Live Activity push tokens per job.
 
 ### Services
@@ -46,10 +46,10 @@ Send models from 3DVault straight to a printer, slicing on the server when neede
 - **Discovery**: listens for SSDP on UDP 2021 (Bambu) and browses mDNS for `_moonraker`, `_octoprint` and `_prusalink`.
 
 ### API (sketch)
-- `GET/POST/PATCH/DELETE /printers`, `POST /printers/discover`, `GET /printers/{id}/status`, `GET /printers/{id}/camera` (JPEG snapshot) and `/camera/stream` (MJPEG).
+- `GET /machine-kinds`; `GET/POST/PATCH/DELETE /machines` (writes are admin only); `POST /machines/{id}/pause|resume|cancel|bed-cleared`; `GET /machines/{id}/camera` (JPEG snapshot). Later: `POST /machines/discover`, `/camera/stream` (MJPEG).
 - `GET/POST /slicer/profiles`, `POST /slicer/profiles/import` (Orca / Bambu Studio / PrusaSlicer bundles).
-- `POST /print/slice` → job with a summary and a preview; `GET /jobs/{id}/preview` (layer toolpaths, compact binary); `POST /jobs/{id}/send`.
-- `GET /jobs?printer=&model=`, `POST /jobs/{id}/pause|resume|cancel`, `POST /printers/{id}/bed-cleared`.
+- `GET /files/{id}/print-info` (format, plates, compatible printers); `POST /jobs` queues a pre-sliced file; `GET /jobs?machine_id=&model_id=&active=`; `POST /jobs/{id}/cancel`.
+- Phase 3: `POST /print/slice` → summary and preview; `GET /jobs/{id}/preview` (layer toolpaths, compact binary).
 - `POST /push/devices`, `POST /push/activities`.
 - Server-sent events at `/events` for live status in web and Mac.
 
@@ -71,7 +71,7 @@ Send models from 3DVault straight to a printer, slicing on the server when neede
 - Mac: Print button and printer status, using the same API as iOS.
 
 ## Phases
-1. **Server foundation**: printer model, driver interface, simulated printer, job queue, send pre-sliced files, status API, and the iOS print sheet for pre-sliced files plus the Printers tab.
+1. **Server foundation** (done 2026-10-22): printer model, driver interface, simulated printer, job queue, send pre-sliced files, status API, and the iOS print sheet for pre-sliced files plus the Printers tab.
 2. **Bambu LAN driver**: MQTT, FTPS, AMS read and mapping, camera. Tested against a protocol simulator, then the A1 mini.
 3. **Server slicing**: Orca CLI in the image, vendor and imported profiles, per-print overrides, summary and layer preview, saving the sliced file to the model.
 4. **Push**: APNs, Live Activities and the widget extension.

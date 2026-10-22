@@ -251,3 +251,48 @@ class UploadBatch(Base):
     # [{"id": "f1", "path": "benchy/hull.stl", "size": 123, "sha256": "...", "dup_model_id": 3}]
     files: Mapped[list] = mapped_column(JSON, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class Machine(Base):
+    """A real printer 3DVault can send jobs to. Bed-size profiles for the fits filter are `Printer`."""
+
+    __tablename__ = "machines"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(128), unique=True)
+    kind: Mapped[str] = mapped_column(String(16))  # bambu | moonraker | prusalink | octoprint | simulated
+    host: Mapped[str] = mapped_column(String(256), default="")
+    serial: Mapped[str] = mapped_column(String(64), default="")
+    # Access code or API key, encrypted with the key in /data (see secretbox.py).
+    secret: Mapped[str] = mapped_column(Text, default="")
+    printer_id: Mapped[int | None] = mapped_column(ForeignKey("printers.id", ondelete="SET NULL"), nullable=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Set when a print ends; the queue waits until someone confirms the bed is clear.
+    needs_clear: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    printer: Mapped[Printer | None] = relationship()
+
+
+class PrintJob(Base):
+    __tablename__ = "print_jobs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    machine_id: Mapped[int] = mapped_column(ForeignKey("machines.id", ondelete="CASCADE"), index=True)
+    model_id: Mapped[int | None] = mapped_column(ForeignKey("models.id", ondelete="SET NULL"), nullable=True, index=True)
+    file_id: Mapped[int | None] = mapped_column(ForeignKey("files.id", ondelete="SET NULL"), nullable=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    # Kept so history still reads well after the model or file is deleted.
+    model_name: Mapped[str] = mapped_column(String(256), default="")
+    file_name: Mapped[str] = mapped_column(String(1024), default="")
+    plate: Mapped[int] = mapped_column(Integer, default=1)
+    options: Mapped[dict] = mapped_column(JSON, default=dict)
+    # queued | uploading | printing | paused | finished | failed | cancelled
+    state: Mapped[str] = mapped_column(String(16), default="queued", index=True)
+    progress: Mapped[float] = mapped_column(Float, default=0)
+    layer: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    total_layers: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    remaining_s: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    machine: Mapped[Machine] = relationship()
+    user: Mapped[User | None] = relationship()

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { api, type Collection, type Printer, type Rule, type User } from "../api";
+import { api, type Collection, type Machine, type MachineKind, type Printer, type Rule, type User } from "../api";
 import { useUser } from "../App";
 import { CategorySelect, Icon, TagInput, buildTree, flattenTree, useCategories, useTags, useToast } from "../components/ui";
 
@@ -26,7 +26,12 @@ export default function Settings() {
         {tab === "Account" && <Account />}
         {tab === "Categories" && <Categories />}
         {tab === "Tags" && <Tags />}
-        {tab === "Printers" && <Printers />}
+        {tab === "Printers" && (
+          <>
+            {user.role === "admin" && <Machines />}
+            <Printers />
+          </>
+        )}
         {tab === "Auto-tag rules" && <Rules />}
         {tab === "Collections" && <Collections />}
         {tab === "Users" && <Users />}
@@ -255,6 +260,126 @@ function Tags() {
   );
 }
 
+/* ---------------------------------------------------------------- connected printers */
+
+type MachineForm = { id?: number; name: string; kind: string; host: string; serial: string; secret: string; printer_id: number | null; enabled: boolean; has_secret?: boolean };
+
+const EMPTY_MACHINE: MachineForm = { name: "", kind: "", host: "", serial: "", secret: "", printer_id: null, enabled: true };
+
+function Machines() {
+  const kinds = useQuery({ queryKey: ["machine-kinds"], queryFn: () => api<MachineKind[]>("/machine-kinds") });
+  const machines = useQuery({ queryKey: ["machines"], queryFn: () => api<Machine[]>("/machines"), refetchInterval: 5000 });
+  const beds = useQuery({ queryKey: ["printers"], queryFn: () => api<Printer[]>("/printers") });
+  const inv = useInvalidate();
+  const run = useRun();
+  const [form, setForm] = useState<MachineForm | null>(null);
+  const kind = kinds.data?.find((k) => k.kind === form?.kind);
+
+  const save = async () => {
+    if (!form) return;
+    // An empty secret on an existing printer keeps the stored one.
+    const body = { ...form, secret: form.id && !form.secret ? null : form.secret };
+    const ok = await run(() => api(form.id ? `/machines/${form.id}` : "/machines", { method: form.id ? "PATCH" : "POST", json: body }), "Printer saved");
+    if (ok) {
+      setForm(null);
+      inv("machines");
+    }
+  };
+
+  return (
+    <section className="panel col" style={{ marginBottom: 16 }}>
+      <div className="row">
+        <h2>Connected printers</h2>
+        <span className="spacer" />
+        {!form && (
+          <button className="small primary" onClick={() => setForm({ ...EMPTY_MACHINE, kind: kinds.data?.[0]?.kind ?? "" })}>
+            Add printer
+          </button>
+        )}
+      </div>
+      <p className="dim" style={{ margin: 0 }}>Printers 3DVault can send prints to. Everyone signed in can print to them and see their status.</p>
+      {!!machines.data?.length && (
+        <table className="list">
+          <tbody>
+            {machines.data.map((m) => (
+              <tr key={m.id}>
+                <td>{m.name}</td>
+                <td className="dim">{kinds.data?.find((k) => k.kind === m.kind)?.label ?? m.kind}</td>
+                <td className="dim">{m.enabled ? m.status.state : "disabled"}</td>
+                <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                  <button className="small" onClick={() => setForm({ ...m, secret: "" })}>
+                    Edit
+                  </button>{" "}
+                  <button
+                    className="small danger"
+                    onClick={() => window.confirm(`Remove ${m.name}? Its print history is deleted too.`) && run(() => api(`/machines/${m.id}`, { method: "DELETE" })).then(() => inv("machines"))}
+                  >
+                    Remove
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {form && (
+        <div className="col" style={{ gap: 8, maxWidth: 460 }}>
+          <label>
+            Name
+            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="A1 mini" />
+          </label>
+          <label>
+            Type
+            <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
+              {kinds.data?.map((k) => (
+                <option key={k.kind} value={k.kind}>
+                  {k.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {kind?.fields.map((f) => (
+            <label key={f.key}>
+              {f.label}
+              {f.secret ? (
+                <input
+                  type="password"
+                  autoComplete="off"
+                  value={form.secret}
+                  placeholder={form.has_secret ? "Unchanged" : ""}
+                  onChange={(e) => setForm({ ...form, secret: e.target.value })}
+                />
+              ) : (
+                <input value={form[f.key as "host" | "serial"]} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+              )}
+            </label>
+          ))}
+          <label>
+            Bed size
+            <select value={form.printer_id ?? ""} onChange={(e) => setForm({ ...form, printer_id: e.target.value ? Number(e.target.value) : null })}>
+              <option value="">Unknown</option>
+              {beds.data?.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="row" style={{ gap: 6 }}>
+            <input type="checkbox" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} /> Enabled
+          </label>
+          <div className="row" style={{ gap: 8 }}>
+            <button className="primary" disabled={!form.name || !form.kind} onClick={save}>
+              Save
+            </button>
+            <button onClick={() => setForm(null)}>Cancel</button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 /* ---------------------------------------------------------------- printers */
 
 function Printers() {
@@ -265,6 +390,7 @@ function Printers() {
   const save = (row: Printer, patch: Partial<Printer>) => run(() => api(`/printers/${row.id}`, { method: "PATCH", json: { ...row, ...patch } })).then(() => inv("printers"));
   return (
     <section className="panel col">
+      <h2>Bed sizes</h2>
       <p className="dim" style={{ margin: 0 }}>Build volumes in mm. Used by the “Fits printer” filter. Parts may be rotated to fit.</p>
       <table className="list">
         <thead>

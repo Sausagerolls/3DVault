@@ -4,7 +4,7 @@ library or a runaway file cannot take down the worker."""
 import sys
 
 from .db import init_engine, session_scope
-from .formats import embedded_thumbnail, gcode_metadata, is_slicer_project
+from .formats import embedded_thumbnail, gcode_metadata, is_slicer_project, sliced_3mf_info
 from .library import file_path, preview_path, thumb_path
 from .models import File
 
@@ -23,6 +23,12 @@ def process_file(file_id: int) -> None:
         if f.kind in ("mesh", "cad"):
             if f.ext == "3mf" and is_slicer_project(path):
                 meta["slicer_project"] = True
+            if f.ext == "3mf":
+                sliced = sliced_3mf_info(path)
+                if sliced:
+                    meta["sliced"] = sliced
+                else:
+                    meta.pop("sliced", None)
             try:
                 m = meshlib.load_mesh(path)
                 stats = meshlib.analyse(m)

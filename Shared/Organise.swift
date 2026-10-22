@@ -6,7 +6,7 @@ import VaultKit
 
 /// Which list the library grid is showing.
 enum LibrarySection: Hashable {
-    case all, untriaged, favourites, flagged, trash, pinned
+    case all, untriaged, favourites, flagged, trash, pinned, printers
     case category(Int)
     case collection(Int)
     case tag(String)

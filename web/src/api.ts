@@ -64,6 +64,20 @@ export type ModelDetail = ModelSummary & {
 export type Page<T> = { items: T[]; total: number; page: number; page_size: number };
 export type Category = { id: number; name: string; parent_id: number | null; count: number };
 export type Tag = { id: number; name: string; count: number | null };
+export type MachineKind = { kind: string; label: string; formats: string[]; has_camera: boolean; fields: { key: string; label: string; secret: boolean }[] };
+export type Machine = {
+  id: number;
+  name: string;
+  kind: string;
+  host: string;
+  serial: string;
+  has_secret: boolean;
+  printer_id: number | null;
+  enabled: boolean;
+  needs_clear: boolean;
+  status: { state: string; message?: string };
+  queued: number;
+};
 export type Printer = { id: number; name: string; x: number; y: number; z: number; builtin: boolean };
 export type Collection = {
   id: number;

@@ -41,6 +41,7 @@ struct SidebarView: View {
                 row("Favourites", "heart", nil).tag(LibrarySection.favourites)
                 row("Has Problems", "flag", nil).tag(LibrarySection.flagged)
                 row("Offline", "arrow.down.circle", state.pins.pinned.count).tag(LibrarySection.pinned)
+                row("Printers", "printer", nil).tag(LibrarySection.printers)
             }
 
             if !pinnedRows.isEmpty {

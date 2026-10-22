@@ -29,7 +29,7 @@ struct LibraryView: View {
         q.printerId = printerId
         q.tags = tagFilter
         switch section {
-        case .all, .pinned: break
+        case .all, .pinned, .printers: break
         case .untriaged: q.untriaged = true
         case .favourites: q.favourite = true
         case .flagged: q.flagged = true
@@ -133,6 +133,7 @@ struct LibraryView: View {
         case .flagged: "Has Problems"
         case .trash: "Trash"
         case .pinned: "Offline"
+        case .printers: "Printers"
         case .category(let id): state.categories.first { $0.id == id }?.name ?? "Category"
         case .collection(let id): state.collections.first { $0.id == id }?.name ?? "Collection"
         case .tag(let name): "#\(name)"
