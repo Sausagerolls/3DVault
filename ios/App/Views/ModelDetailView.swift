@@ -416,12 +416,23 @@ struct ModelDetailView: View {
         Box("Details") {
             if !readOnly {
                 LabeledContent("Category") {
-                    Picker("Category", selection: Binding(get: { m.categoryId ?? -1 }, set: { id in
-                        patch(id == -1 ? ["clear_category": .bool(true)] : ["category_id": .number(Double(id))])
-                    })) {
-                        CategoryOptions()
+                    // A plain menu Picker shows the indented option text as its label and wraps
+                    // long names onto rows below, so show the path on one line instead.
+                    Menu {
+                        Picker("Category", selection: Binding(get: { m.categoryId ?? -1 }, set: { id in
+                            patch(id == -1 ? ["clear_category": .bool(true)] : ["category_id": .number(Double(id))])
+                        })) {
+                            CategoryOptions()
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(m.categoryId == nil ? "None" : state.categoryPath(m.categoryId))
+                                .lineLimit(1)
+                                .truncationMode(.head)
+                            Image(systemName: "chevron.up.chevron.down").font(.caption2)
+                        }
                     }
-                    .labelsHidden()
+                    .frame(maxWidth: .infinity, alignment: .trailing)
                 }
                 TagEditor(tags: m.tags) { patch(["tags": .array($0.map(JSONValue.string))]) }
             } else if !m.tags.isEmpty {

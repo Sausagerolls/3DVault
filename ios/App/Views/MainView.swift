@@ -50,6 +50,8 @@ final class LibraryModel {
 struct MainView: View {
     @Environment(AppState.self) private var state
     @State private var section: LibrarySection? = .all
+    // On iPhone, going back to the sidebar clears the list selection. Keep showing the last section.
+    @State private var shown: LibrarySection = .all
     @State private var path: [Int] = []
     @State private var library = LibraryModel()
     @State private var column: NavigationSplitViewColumn = .detail
@@ -60,13 +62,16 @@ struct MainView: View {
             SidebarView(section: $section)
         } detail: {
             NavigationStack(path: $path) {
-                LibraryView(section: section ?? .all, library: library, opened: path.last) { path = [$0] }
+                LibraryView(section: shown, library: library, opened: path.last) { path = [$0] }
                     .navigationDestination(for: Int.self) { id in
                         ModelDetailView(modelId: id, library: library)
                     }
             }
         }
         .onChange(of: section) {
+            // A nil selection means the user went back to the sidebar, so stay there.
+            guard let section else { return }
+            shown = section
             path = []
             column = .detail
         }

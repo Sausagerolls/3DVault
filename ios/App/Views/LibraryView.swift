@@ -48,6 +48,17 @@ struct LibraryView: View {
         let offline: Bool
     }
 
+    /// The file picker doesn't always reset its binding when it is swiped away, which would leave
+    /// `importing` stuck at true and the picker unable to open again. Reset it first in that case.
+    private func pickFiles() {
+        guard importing else { importing = true; return }
+        importing = false
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150))
+            importing = true
+        }
+    }
+
     var body: some View {
         ScrollView {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: cardSize, maximum: cardSize * 1.5), spacing: 12)], spacing: 12) {
@@ -139,7 +150,7 @@ struct LibraryView: View {
                 Text(state.offline ? "Showing models saved on this device." : trashed ? "" : "Upload model files or folders from Files, or share them to 3DVault from another app.")
             } actions: {
                 if !state.offline && !trashed {
-                    Button("Upload Files…") { importing = true }
+                    Button("Upload Files…") { pickFiles() }
                         .buttonStyle(.glassProminent)
                 }
             }
@@ -179,7 +190,7 @@ struct LibraryView: View {
                     .disabled(library.items.isEmpty)
                 if !state.offline {
                     Menu {
-                        Button { importing = true } label: { Label("Upload Files…", systemImage: "square.and.arrow.up.on.square") }
+                        Button { pickFiles() } label: { Label("Upload Files…", systemImage: "square.and.arrow.up.on.square") }
                         Divider()
                         Button { state.newCollection() } label: { Label("New Collection…", systemImage: "rectangle.stack.badge.plus") }
                         Button { state.newCategory() } label: { Label("New Category…", systemImage: "folder.badge.plus") }
@@ -189,7 +200,7 @@ struct LibraryView: View {
                     } label: {
                         Label("Add", systemImage: "plus")
                     } primaryAction: {
-                        importing = true
+                        pickFiles()
                     }
                 }
             }
