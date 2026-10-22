@@ -84,6 +84,16 @@ def machine_kinds(user: User = Depends(current_user)):
     ]
 
 
+@router.post("/machines/discover")
+async def discover_machines(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    """Listen for printers announcing themselves on the LAN. Takes about six seconds."""
+    from .drivers.bambu import discover
+
+    found = await asyncio.to_thread(discover)
+    known = {m.serial for m in db.query(Machine) if m.serial}
+    return [{**p, "added": p["serial"] in known} for p in found]
+
+
 @router.get("/machines")
 def list_machines(db: Session = Depends(get_db), user: User = Depends(current_user)):
     return [_machine_out(db, m) for m in db.query(Machine).order_by(Machine.name)]

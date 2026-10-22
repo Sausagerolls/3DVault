@@ -274,6 +274,14 @@ function Machines() {
   const run = useRun();
   const [form, setForm] = useState<MachineForm | null>(null);
   const kind = kinds.data?.find((k) => k.kind === form?.kind);
+  type Found = { kind: string; serial: string; host: string; name: string; model: string; lan_mode: boolean; added: boolean };
+  const [found, setFound] = useState<Found[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const findPrinters = async () => {
+    setSearching(true);
+    await run(async () => setFound(await api<Found[]>("/machines/discover", { method: "POST" })));
+    setSearching(false);
+  };
 
   const save = async () => {
     if (!form) return;
@@ -292,11 +300,40 @@ function Machines() {
         <h2>Connected printers</h2>
         <span className="spacer" />
         {!form && (
-          <button className="small primary" onClick={() => setForm({ ...EMPTY_MACHINE, kind: kinds.data?.[0]?.kind ?? "" })}>
-            Add printer
-          </button>
+          <>
+            <button className="small" disabled={searching} onClick={findPrinters}>
+              {searching ? "Searching…" : "Find printers"}
+            </button>
+            <button className="small primary" onClick={() => setForm({ ...EMPTY_MACHINE, kind: kinds.data?.[0]?.kind ?? "" })}>
+              Add printer
+            </button>
+          </>
         )}
       </div>
+      {found && !form && (
+        <div className="col" style={{ gap: 6 }}>
+          {!found.length && (
+            <p className="dim" style={{ margin: 0 }}>
+              No printers answered. Check the printer is on the same network. The 3DVault container needs host networking to hear printer announcements; otherwise add the printer by IP address.
+            </p>
+          )}
+          {found.map((p) => (
+            <div key={p.serial} className="row" style={{ gap: 8 }}>
+              <span>
+                {p.name} <span className="dim">{[p.model, p.host, p.lan_mode ? null : "not in LAN mode"].filter(Boolean).join(" · ")}</span>
+              </span>
+              <span className="spacer" />
+              {p.added ? (
+                <span className="dim">Added</span>
+              ) : (
+                <button className="small" onClick={() => setForm({ ...EMPTY_MACHINE, name: p.name, kind: p.kind, host: p.host, serial: p.serial })}>
+                  Set up
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
       <p className="dim" style={{ margin: 0 }}>Printers 3DVault can send prints to. Everyone signed in can print to them and see their status.</p>
       {!!machines.data?.length && (
         <table className="list">
@@ -338,6 +375,12 @@ function Machines() {
               ))}
             </select>
           </label>
+          {form.kind === "bambu" && (
+            <p className="dim" style={{ margin: 0 }}>
+              On the printer, turn on LAN Only mode and Developer Mode (Settings › Network on the A1, P1 and X1). The access code is shown on the same screen.
+              Bambu Handy and Bambu cloud stop working with the printer while LAN Only mode is on.
+            </p>
+          )}
           {kind?.fields.map((f) => (
             <label key={f.key}>
               {f.label}
