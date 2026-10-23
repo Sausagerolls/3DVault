@@ -111,7 +111,13 @@ final class AppState {
         async let colls = client.collections()
         async let stats = client.stats()
         do {
-            (self.categories, self.tags, self.printers, self.collections, self.stats) = try await (cats, tags, printers, colls, stats)
+            let (c, t, p, l, s) = try await (cats, tags, printers, colls, stats)
+            // Assign only what changed so periodic refreshes don't redraw the sidebar.
+            if c != self.categories { self.categories = c }
+            if t != self.tags { self.tags = t }
+            if p != self.printers { self.printers = p }
+            if l != self.collections { self.collections = l }
+            self.stats = s
             offline = false
         } catch {
             report(error)

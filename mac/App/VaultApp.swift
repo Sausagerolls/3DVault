@@ -80,5 +80,16 @@ struct RootView: View {
             }
         }
         .animation(.spring(duration: 0.3), value: state.banner)
+        // Pick up categories, tags and models changed from other devices.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            if state.user != nil, !state.offline { state.changed() }
+        }
+        .task(id: state.user?.id) {
+            guard state.user != nil else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(60))
+                if NSApp.isActive, !state.offline { await state.refreshTaxonomy() }
+            }
+        }
     }
 }

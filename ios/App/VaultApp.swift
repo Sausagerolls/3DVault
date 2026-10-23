@@ -25,6 +25,8 @@ struct VaultApp: App {
         }
         .onChange(of: scenePhase) {
             if scenePhase == .background { PrintTracker.shared.scheduleRefresh() }
+            // Pick up categories, tags and models changed from other devices.
+            if scenePhase == .active, state.user != nil, !state.offline { state.changed() }
         }
         // iOS wakes the app now and then while prints run; check them and update the Live Activity.
         .backgroundTask(.appRefresh(PrintTracker.refreshTask)) {
@@ -89,6 +91,7 @@ struct RootView: View {
             while !Task.isCancelled {
                 await PrintTracker.shared.sync()
                 try? await Task.sleep(for: .seconds(30))
+                if !state.offline { await state.refreshTaxonomy() }
             }
         }
     }
