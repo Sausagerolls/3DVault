@@ -16,3 +16,4 @@ build/
 *.db-shm
 *.db-wal
 /dist/
+mac/3DVault.xcodeproj/-Xcc/

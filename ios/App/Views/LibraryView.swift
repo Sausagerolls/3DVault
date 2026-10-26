@@ -373,11 +373,8 @@ struct ModelMenu: View {
                 } label: { Label("Print Status", systemImage: "checkmark.circle") }
                 Menu {
                     Button("None") { run(["clear_category": .bool(true)], "Cleared category") }
-                    ForEach(state.categoryTree, id: \.category.id) { item in
-                        Button(String(repeating: "    ", count: item.depth) + item.category.name) {
-                            run(["category_id": .number(Double(item.category.id))], "Moved \(n) to \(item.category.name)")
-                        }
-                    }
+                    Divider()
+                    CategoryMenuItems { c in run(["category_id": .number(Double(c.id))], "Moved \(n) to \(c.name)") }
                 } label: { Label("Category", systemImage: "folder") }
                 Menu {
                     ForEach(state.collections.filter { !$0.isSmart }) { c in

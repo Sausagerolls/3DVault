@@ -40,18 +40,19 @@ struct UploadSheet: View {
                 }
                 if groups.count > 1 {
                     Section {
-                        Picker("Category for all", selection: Binding(get: { -2 }, set: { v in
-                            for i in groups.indices { groups[i].categoryId = v }
-                        })) {
-                            Text("Choose…").tag(-2)
-                            CategoryOptions(noneLabel: "Untriaged")
+                        LabeledContent("Category for all") {
+                            CategoryPicker(selection: Binding(get: { -1 }, set: { v in
+                                for i in groups.indices { groups[i].categoryId = v }
+                            }), noneLabel: "Untriaged", prompt: "Choose…")
                         }
                     }
                 }
                 ForEach($groups) { $g in
                     Section {
                         TextField("Model name", text: $g.name).font(.headline)
-                        Picker("Category", selection: $g.categoryId) { CategoryOptions(noneLabel: "Untriaged") }
+                        LabeledContent("Category") {
+                            CategoryPicker(selection: $g.categoryId, noneLabel: "Untriaged")
+                        }
                         TextField("Tags, comma separated", text: $g.tags)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()

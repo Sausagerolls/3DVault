@@ -29,13 +29,11 @@ struct BulkSheet: View {
                     }
                     if !state.offline {
                         Section("Category") {
-                            Menu {
-                                Button("None") { run(["clear_category": .bool(true)], "Cleared category") }
-                                ForEach(state.categoryTree, id: \.category.id) { item in
-                                    Button(String(repeating: "    ", count: item.depth) + item.category.name) {
-                                        run(["category_id": .number(Double(item.category.id))], "Moved \(n) to \(item.category.name)")
-                                    }
-                                }
+                            LabeledContent {
+                                CategoryPicker(selection: Binding(get: { -1 }, set: { id in
+                                    if id == -1 { run(["clear_category": .bool(true)], "Cleared category") }
+                                    else { run(["category_id": .number(Double(id))], "Moved \(n) to \(state.categoryPath(id))") }
+                                }), prompt: "Choose…")
                             } label: { Label("Set Category", systemImage: "folder") }
                             Button { run(["untriaged": .bool(false)], "Marked \(n) as triaged") } label: { Label("Mark as Triaged", systemImage: "tray.and.arrow.down") }
                         }

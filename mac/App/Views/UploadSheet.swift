@@ -22,7 +22,6 @@ struct UploadSheet: View {
     @State private var progress: (done: Int, total: Int)?
     @State private var error: String?
     @State private var committing = false
-    @State private var allCategory = -1
 
     private var files: [String: StagedFile] { Dictionary(uniqueKeysWithValues: (batch?.files ?? []).map { ($0.id, $0) }) }
 
@@ -32,14 +31,9 @@ struct UploadSheet: View {
                 Text("Upload").font(.title2.bold())
                 Spacer()
                 if !groups.isEmpty {
-                    Picker("Category for all", selection: $allCategory) {
-                        Text("Category for all…").tag(-1)
-                        ForEach(state.categoryTree, id: \.category.id) { item in
-                            Text(String(repeating: "   ", count: item.depth) + item.category.name).tag(item.category.id)
-                        }
-                    }
-                    .frame(width: 220)
-                    .onChange(of: allCategory) { _, v in if v != -1 { for i in groups.indices { groups[i].categoryId = v } } }
+                    CategoryPicker(selection: Binding(get: { -1 }, set: { v in
+                        for i in groups.indices { groups[i].categoryId = v }
+                    }), noneLabel: "Untriaged", prompt: "Category for all…")
                 }
             }
 
@@ -55,14 +49,8 @@ struct UploadSheet: View {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
                             TextField("Model name", text: $g.name).font(.headline)
-                            Picker("", selection: $g.categoryId) {
-                                Text("Untriaged").tag(-1)
-                                ForEach(state.categoryTree, id: \.category.id) { item in
-                                    Text(String(repeating: "   ", count: item.depth) + item.category.name).tag(item.category.id)
-                                }
-                            }
-                            .labelsHidden()
-                            .frame(width: 180)
+                            CategoryPicker(selection: $g.categoryId, noneLabel: "Untriaged")
+                                .frame(maxWidth: 220, alignment: .trailing)
                             Menu {
                                 ForEach(groups.filter { $0.id != g.id }) { other in
                                     Button("Merge into “\(other.name)”") { merge(g.id, into: other.id) }

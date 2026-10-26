@@ -157,15 +157,3 @@ struct FlowLayout: Layout {
     }
 }
 
-/// Category picker rows indented by depth.
-struct CategoryOptions: View {
-    @Environment(AppState.self) private var state
-    var noneLabel = "None"
-
-    var body: some View {
-        Text(noneLabel).tag(-1)
-        ForEach(state.categoryTree, id: \.category.id) { item in
-            Text(String(repeating: "    ", count: item.depth) + item.category.name).tag(item.category.id)
-        }
-    }
-}

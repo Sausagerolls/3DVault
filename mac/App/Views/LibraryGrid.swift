@@ -113,10 +113,9 @@ struct LibraryGrid: View {
                 Divider()
                 Menu("Category") {
                     Button("None") { Task { await ModelActions.bulk(ids, ["clear_category": .bool(true)], message: "Cleared category", state: state) } }
-                    ForEach(state.categoryTree, id: \.category.id) { item in
-                        Button(String(repeating: "    ", count: item.depth) + item.category.name) {
-                            Task { await ModelActions.bulk(ids, ["category_id": .number(Double(item.category.id))], message: "Moved \(n) to \(item.category.name)", state: state) }
-                        }
+                    Divider()
+                    CategoryMenuItems { c in
+                        Task { await ModelActions.bulk(ids, ["category_id": .number(Double(c.id))], message: "Moved \(n) to \(c.name)", state: state) }
                     }
                 }
                 Menu("Print Status") {

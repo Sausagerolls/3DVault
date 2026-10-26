@@ -32,6 +32,7 @@
 		D8E511509D184315771B856C /* Organise.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89BF6E89B76AE01081F9FE95 /* Organise.swift */; };
 		D98338C00A0A43D727557267 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517E0F04A3127AB9C44666D2 /* SettingsView.swift */; };
 		E1EC429948443738202BCF3C /* PinStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A8F2E01782489CC97C87431 /* PinStore.swift */; };
+		F6D28F800C73A40BB3422247 /* CategoryPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7D250CE6403D940120B601F /* CategoryPicker.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -58,6 +59,7 @@
 		B87A49572AD7450D8A78DA51 /* CategoryDrag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryDrag.swift; sourceTree = "<group>"; };
 		C3A22722F7F992DAA1D4BC23 /* Platform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Platform.swift; sourceTree = "<group>"; };
 		CDA52A65E0449A7E947BE85D /* VaultKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = VaultKit; path = ../VaultKit; sourceTree = SOURCE_ROOT; };
+		D7D250CE6403D940120B601F /* CategoryPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryPicker.swift; sourceTree = "<group>"; };
 		E2BE1B7F71AD195AEEA502A5 /* FileCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileCache.swift; sourceTree = "<group>"; };
 		EE596EB27519E6AD2A533B78 /* InboxWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxWatcher.swift; sourceTree = "<group>"; };
 		F530899D0BBBDAC4948F9BEF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -105,6 +107,7 @@
 			children = (
 				6D60CA267CD677F439FA6023 /* Appearance.swift */,
 				B87A49572AD7450D8A78DA51 /* CategoryDrag.swift */,
+				D7D250CE6403D940120B601F /* CategoryPicker.swift */,
 				89BF6E89B76AE01081F9FE95 /* Organise.swift */,
 				D6AB40D935AC16CD4D3EC144 /* Printing */,
 			);
@@ -264,6 +267,7 @@
 				7331A90345FC89C32D4CC886 /* AppState.swift in Sources */,
 				8F573D69D216470DC1C899C6 /* Appearance.swift in Sources */,
 				7C09183B301BF0F3436539B1 /* CategoryDrag.swift in Sources */,
+				F6D28F800C73A40BB3422247 /* CategoryPicker.swift in Sources */,
 				76398EA5EFF997F498E1D028 /* DetailPane.swift in Sources */,
 				68134DE100F1B7E9E0F88617 /* FileCache.swift in Sources */,
 				493D779E48897C055A478D71 /* InboxWatcher.swift in Sources */,
