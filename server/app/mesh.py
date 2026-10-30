@@ -53,35 +53,30 @@ def load_mesh(path: Path) -> trimesh.Trimesh:
 
 
 def _load_step(path: Path) -> trimesh.Trimesh:
+    # cascadio bundles OpenCASCADE's STEP reader and mesher in one small wheel.
     try:
-        from OCP.Bnd import Bnd_Box
-        from OCP.BRepBndLib import BRepBndLib
-        from OCP.BRepMesh import BRepMesh_IncrementalMesh
-        from OCP.IFSelect import IFSelect_RetDone
-        from OCP.StlAPI import StlAPI_Writer
-        from OCP.STEPControl import STEPControl_Reader
+        import cascadio
     except ImportError as e:
         raise MeshError("STEP support is not installed in this image") from e
 
-    reader = STEPControl_Reader()
-    if reader.ReadFile(str(path)) != IFSelect_RetDone:
-        raise MeshError("Could not read STEP file")
-    reader.TransferRoots()
-    shape = reader.OneShape()
-    box = Bnd_Box()
-    BRepBndLib.Add_s(shape, box)
-    lo, hi = box.CornerMin(), box.CornerMax()
-    diag = float(np.linalg.norm([hi.X() - lo.X(), hi.Y() - lo.Y(), hi.Z() - lo.Z()])) or 1.0
-    BRepMesh_IncrementalMesh(shape, max(diag * 0.0008, 0.005), False, 0.3, True)
     with tempfile.TemporaryDirectory() as tmp:
-        out = Path(tmp) / "step.stl"
-        writer = StlAPI_Writer()
-        writer.ASCIIMode = False
-        if not writer.Write(shape, str(out)):
-            raise MeshError("STEP tessellation failed")
-        mesh = trimesh.load(str(out), force="mesh")
+        out = Path(tmp) / "step.glb"
+        # 0.02 mm chord error is well under a printer's resolution.
+        if cascadio.step_to_glb(str(path), str(out), tol_linear=0.02, tol_angular=0.3) != 0 or not out.exists():
+            raise MeshError("Could not read STEP file")
+        try:
+            scene = trimesh.load(str(out), force="scene", process=False)
+        except Exception as e:
+            raise MeshError(f"Could not read STEP file: {e}") from e
+    if not scene.geometry:
+        raise MeshError("STEP file has no solid geometry")
+    mesh = scene.to_geometry() if hasattr(scene, "to_geometry") else scene.dump(concatenate=True)
     if len(mesh.faces) == 0:
         raise MeshError("STEP file has no solid geometry")
+    # glTF is in metres; STEP models and the rest of the library are in millimetres.
+    mesh.apply_scale(1000.0)
+    # Faces arrive with their own vertices; join them so the mesh is watertight again.
+    mesh.merge_vertices()
     return mesh
 
 

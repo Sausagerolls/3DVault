@@ -22,6 +22,9 @@ RUN curl -fsSL -o /tmp/orca.AppImage \
     && shnum=$(od -An -t u2 -j 60 -N 2 $f | tr -d ' ') \
     && unsquashfs -q -o $((shoff + shentsize * shnum)) -d /opt/orca $f \
     && rm $f
+# Only the command line is used: drop the GUI's translations, web pages, images, printer
+# error-code database, calibration models and tooltips.
+RUN cd /opt/orca/resources && rm -rf hms web images i18n handy_models calib tooltip
 
 # WITH_SLICER picks one of these two stages, so a build without the slicer copies nothing.
 FROM orca AS orca-true
@@ -35,12 +38,12 @@ ARG WITH_STEP=true
 ARG WITH_SLICER=true
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
     VAULT_LIBRARY=/library VAULT_DATA=/data VAULT_INBOX=/inbox VAULT_WEB=/app/web
-RUN apt-get update && apt-get install -y --no-install-recommends libgl1 libxrender1 libxext6 libxi6 libxcursor1 libxft2 libxinerama1 curl \
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY server/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt \
-    && if [ "$WITH_STEP" = "true" ]; then pip install --no-cache-dir cadquery-ocp==8.0.1.1.0; fi
+    && if [ "$WITH_STEP" = "true" ]; then pip install --no-cache-dir cascadio==0.1.1; fi
 COPY server/app ./app
 COPY --from=web /web/dist ./web
 # Libraries OrcaSlicer links against. It runs headless on the command line, but still loads GTK.

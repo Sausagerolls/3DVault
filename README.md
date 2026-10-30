@@ -38,7 +38,7 @@ docker save 3dvault:latest | gzip > 3dvault.tar.gz
 # copy to the NAS, then:  docker load < 3dvault.tar.gz
 ```
 
-Build with `--build-arg WITH_STEP=false` to leave out STEP support. That saves about 300 MB.
+Build with `--build-arg WITH_STEP=false` to leave out STEP support. That saves about 70 MB.
 
 ### Remote access (Tailscale)
 
@@ -64,7 +64,7 @@ Back up `library/` and `data/vault.db` together. The NAS snapshot tools are fine
 ## Development
 
 ```sh
-cd server && python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt cadquery-ocp
+cd server && python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt cascadio
 VAULT_LIBRARY=/tmp/v/library VAULT_DATA=/tmp/v/data VAULT_INBOX=/tmp/v/inbox .venv/bin/uvicorn app.main:app --port 8765 --reload
 VAULT_LIBRARY=/tmp/v/library VAULT_DATA=/tmp/v/data VAULT_INBOX=/tmp/v/inbox .venv/bin/python -m app.worker
 cd web && npm install && npm run dev    # http://localhost:5173, proxies /api to :8765
