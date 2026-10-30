@@ -17,6 +17,9 @@ final class PrintTracker: NSObject, UNUserNotificationCenterDelegate {
 
     private weak var state: AppState?
     private let notifiedKey = "printTracker.notified"
+    /// Also follow prints started on the printer or in another app. On by default.
+    static let followExternalKey = "printTracker.followExternal"
+    private var followExternal: Bool { UserDefaults.standard.object(forKey: Self.followExternalKey) as? Bool ?? true }
 
     func start(state: AppState) {
         self.state = state
@@ -42,7 +45,7 @@ final class PrintTracker: NSObject, UNUserNotificationCenterDelegate {
     /// Check the server for this person's prints and bring activities and notifications up to date.
     func sync() async {
         guard let client else { return }
-        guard let active = try? await client.printJobs(active: true, mine: true) else { return }
+        guard let active = try? await client.printJobs(active: true, mine: true, external: followExternal) else { return }
         let running = active.filter { $0.state != "queued" }
         for job in running { update(job) }
         // Activities for jobs that are no longer running: find out how they ended.

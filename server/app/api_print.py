@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 from starlette.datastructures import UploadFile
 from pydantic import BaseModel
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from .auth import current_user, require_admin
@@ -210,6 +211,7 @@ def _job_out(j: PrintJob) -> dict:
         "plate": j.plate,
         "user": j.user.display_name if j.user else None,
         "user_id": j.user_id,
+        "external": bool((j.options or {}).get("external")),
         "state": j.state,
         "progress": j.progress,
         "layer": j.layer,
@@ -301,6 +303,7 @@ def list_jobs(
     model_id: int | None = None,
     active: bool = False,
     mine: bool = False,
+    external: bool = False,
     limit: int = 50,
     db: Session = Depends(get_db),
     user: User = Depends(current_user),
@@ -311,7 +314,8 @@ def list_jobs(
     if model_id is not None:
         q = q.filter(PrintJob.model_id == model_id)
     if mine:
-        q = q.filter(PrintJob.user_id == user.id)
+        # external=true also includes prints started outside 3DVault, which belong to no one.
+        q = q.filter(or_(PrintJob.user_id == user.id, PrintJob.user_id.is_(None)) if external else PrintJob.user_id == user.id)
     if active:
         q = q.filter(PrintJob.state.in_(("queued", *ACTIVE)))
         return [_job_out(j) for j in q.order_by(PrintJob.id).limit(limit)]

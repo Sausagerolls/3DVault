@@ -167,7 +167,7 @@ export function JobList({ machineId, modelId }: { machineId?: number; modelId?: 
               {j.error && <div style={{ color: "var(--danger)", fontSize: 12 }}>{j.error}</div>}
             </td>
             <td className="dim" style={{ fontSize: 12, whiteSpace: "nowrap" }}>
-              {[j.user, new Date(j.finished_at ?? j.created_at).toLocaleString()].filter(Boolean).join(" · ")}
+              {[j.external ? "Started outside 3DVault" : j.user, new Date(j.finished_at ?? j.created_at).toLocaleString()].filter(Boolean).join(" · ")}
             </td>
             <td style={{ textAlign: "right" }}>
               {j.state === "queued" ? (

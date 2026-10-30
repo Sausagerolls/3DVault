@@ -63,6 +63,8 @@ public struct PrintJob: Codable, Hashable, Identifiable, Sendable {
     public let fileName: String
     public let plate: Int
     public let user: String?
+    /// Started outside 3DVault, on the printer or in another app. Older servers leave it out.
+    public let external: Bool?
     /// queued | uploading | printing | paused | finished | failed | cancelled
     public let state: String
     public let progress: Double
@@ -195,10 +197,12 @@ extension APIClient {
 
     public func printJob(_ id: Int) async throws -> PrintJob { try await get("jobs/\(id)") }
 
-    /// `mine` limits the list to prints sent by the signed-in person.
-    public func printJobs(machineId: Int? = nil, modelId: Int? = nil, active: Bool = false, mine: Bool = false) async throws -> [PrintJob] {
+    /// `mine` limits the list to prints sent by the signed-in person; with `external`, prints
+    /// started outside 3DVault are included too.
+    public func printJobs(machineId: Int? = nil, modelId: Int? = nil, active: Bool = false, mine: Bool = false, external: Bool = false) async throws -> [PrintJob] {
         var q: [URLQueryItem] = []
         if mine { q.append(.init(name: "mine", value: "true")) }
+        if external { q.append(.init(name: "external", value: "true")) }
         if let machineId { q.append(.init(name: "machine_id", value: String(machineId))) }
         if let modelId { q.append(.init(name: "model_id", value: String(modelId))) }
         if active { q.append(.init(name: "active", value: "true")) }

@@ -87,6 +87,7 @@ export type PrintJob = {
   file_name: string;
   plate: number;
   user: string | null;
+  external?: boolean;
   state: "queued" | "uploading" | "printing" | "paused" | "finished" | "failed" | "cancelled";
   progress: number;
   layer: number | null;

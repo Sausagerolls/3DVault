@@ -7,6 +7,7 @@ struct SettingsView: View {
     @State private var cacheSize = 0
     @State private var confirmSignOut = false
     @AppStorage(Appearance.key) private var appearance = Appearance.system
+    @AppStorage(PrintTracker.followExternalKey) private var followExternal = true
 
     var body: some View {
         NavigationStack {
@@ -29,6 +30,13 @@ struct SettingsView: View {
                         ForEach(Appearance.allCases) { Text($0.label).tag($0) }
                     }
                     .pickerStyle(.segmented)
+                }
+                Section {
+                    Toggle("Follow All Prints", isOn: $followExternal)
+                } header: {
+                    Text("Print Progress")
+                } footer: {
+                    Text("Show a Live Activity and notifications for prints started on the printer or in another app, as well as prints you send from 3DVault.")
                 }
                 if let s = state.stats {
                     Section("Library") {

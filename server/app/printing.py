@@ -155,6 +155,12 @@ class PrintManager:
                     active.progress = 100
                 self.end_job(db, active, outcome, s.message if outcome == "failed" else "")
             return
+        if active is None and s.state in ("preparing", "printing", "paused"):
+            with self._lock:
+                if machine.id in self._sending:
+                    return
+            self._adopt(db, machine, s)
+            return
         if active is None and not machine.needs_clear and s.state in ("idle", "finished"):
             with self._lock:
                 if machine.id in self._sending:
@@ -171,6 +177,37 @@ class PrintManager:
                 with self._lock:
                     self._sending.add(machine.id)
                 self._pool.submit(self._send, machine.id, nxt.id)
+
+    def _adopt(self, db, machine: Machine, s: Status) -> None:
+        """Record a print started outside 3DVault (on the printer, in a slicer or a phone app)
+        as a job, so it shows progress and history and sends alerts like any other print."""
+        name = Path(s.file).name if s.file else ""
+        f = None
+        if name:
+            # The printer keeps the uploaded file name, so match it to a library file if there is one.
+            base = name[: -len(".gcode.3mf")] if name.endswith(".gcode.3mf") else Path(name).stem
+            for cand in db.query(File).filter(File.rel_path.like(f"%{base}%")).limit(50):
+                if Path(cand.rel_path).name == name or remote_name(cand.rel_path) == name:
+                    f = cand
+                    break
+        job = PrintJob(
+            machine_id=machine.id,
+            model_id=f.model_id if f else None,
+            file_id=f.id if f else None,
+            model_name=f.model.name if f else _display_name(name) or "Print",
+            file_name=f.rel_path if f else name,
+            options={"external": True},
+            state="paused" if s.state == "paused" else "printing",
+            progress=s.progress,
+            layer=s.layer, total_layers=s.total_layers, remaining_s=s.remaining_s,
+            started_at=utcnow(),
+        )
+        job.machine = machine
+        db.add(job)
+        db.flush()
+        self._seen.add(job.id)
+        log.info("recorded print %s started outside 3DVault on printer %s as job %s", name, machine.id, job.id)
+        notify.job_event(job, "started")
 
     def end_job(self, db, job: PrintJob, outcome: str, error: str = "") -> None:
         job.state, job.finished_at, job.error = outcome, utcnow(), error
@@ -227,6 +264,15 @@ class PrintManager:
                 job.state = "printing"
                 notify.job_event(job, "started")
         self.wake()
+
+
+def _display_name(file_name: str) -> str:
+    """A readable title from a printer file name like "Benchy.stl.gcode.3mf"."""
+    n = file_name
+    for ext in (".3mf", ".gcode", ".stl", ".step", ".stp", ".obj"):
+        if n.lower().endswith(ext):
+            n = n[: -len(ext)]
+    return n.replace("_", " ").strip()
 
 
 def remote_name(rel_path: str) -> str:

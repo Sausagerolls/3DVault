@@ -37,6 +37,9 @@ struct PrintersView: View {
                 try? await Task.sleep(for: .seconds(2))
             }
         }
+        // The first fetch can be cancelled as the screen slides in on iPhone, leaving it empty
+        // until a pull to refresh. An unstructured task isn't tied to that transition.
+        .onAppear { Task { await refresh() } }
     }
 
     private func refresh() async {
@@ -44,10 +47,15 @@ struct PrintersView: View {
         do {
             machines = try await client.machines()
             error = nil
+            loaded = true
+        } catch is CancellationError {
+            return
+        } catch let e as URLError where e.code == .cancelled {
+            return
         } catch {
             if !loaded { self.error = error.localizedDescription }
+            loaded = true
         }
-        loaded = true
     }
 }
 
@@ -311,7 +319,7 @@ struct JobRow: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(job.modelName).lineLimit(1)
-                    Text([showMachine ? job.machineName : nil, job.user, (job.finishedAt ?? job.createdAt).formatted(date: .abbreviated, time: .shortened)]
+                    Text([showMachine ? job.machineName : nil, job.external == true ? "Started outside 3DVault" : job.user, (job.finishedAt ?? job.createdAt).formatted(date: .abbreviated, time: .shortened)]
                         .compactMap { $0 }.joined(separator: " · "))
                         .font(.caption).foregroundStyle(.secondary)
                     if !job.error.isEmpty {
