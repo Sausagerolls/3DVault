@@ -36,6 +36,25 @@ struct SidebarView: View {
 
     var body: some View {
         List(selection: $section) {
+            if !state.offline {
+                Section {
+                    Button { pickFiles() } label: {
+                        Label("Upload Files", systemImage: "square.and.arrow.up")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                    }
+                    .buttonStyle(.glassProminent)
+                    .tint(.orange)
+                    .contextMenu {
+                        Button { state.newCollection() } label: { Label("New Collection…", systemImage: "rectangle.stack.badge.plus") }
+                        Button { state.newCategory() } label: { Label("New Category…", systemImage: "folder.badge.plus") }
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+                }
+            }
+
             Section {
                 row("Library", "square.grid.2x2", state.stats?.models).tag(LibrarySection.all)
                 row("Untriaged", "tray", state.stats?.untriaged).tag(LibrarySection.untriaged)
@@ -116,19 +135,6 @@ struct SidebarView: View {
             if state.offline {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Retry") { Task { await state.refreshTaxonomy(); state.changed() } }
-                }
-            } else {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button { pickFiles() } label: { Label("Upload Files…", systemImage: "square.and.arrow.up.on.square") }
-                        Divider()
-                        Button { state.newCollection() } label: { Label("New Collection…", systemImage: "rectangle.stack.badge.plus") }
-                        Button { state.newCategory() } label: { Label("New Category…", systemImage: "folder.badge.plus") }
-                    } label: {
-                        Label("Upload", systemImage: "plus")
-                    } primaryAction: {
-                        pickFiles()
-                    }
                 }
             }
         }

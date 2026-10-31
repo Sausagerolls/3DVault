@@ -57,6 +57,19 @@ struct MainView: View {
     @State private var column: NavigationSplitViewColumn = .detail
 
     var body: some View {
+        #if DEBUG
+        // Simulator testing: VAULT_TEST_SECTION=sidebar shows only the sidebar, for screenshots.
+        if ProcessInfo.processInfo.environment["VAULT_TEST_SECTION"] == "sidebar" {
+            NavigationStack { SidebarView(section: $section) }
+        } else {
+            split
+        }
+        #else
+        split
+        #endif
+    }
+
+    private var split: some View {
         // Sidebar plus a full-width library; models push on top of the grid so it keeps the space.
         NavigationSplitView(preferredCompactColumn: $column) {
             SidebarView(section: $section)
