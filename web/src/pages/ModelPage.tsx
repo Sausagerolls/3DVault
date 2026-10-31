@@ -109,9 +109,15 @@ export default function ModelPage() {
             <span className="faint">{m.files.length}</span>
             <span className="spacer" />
             <AddFiles modelId={m.id} onDone={refresh} />
-            <a className="btn primary" href={modelZipUrl(m.id)}>
-              <Icon name="download" /> Download all
-            </a>
+            {m.files.length === 1 ? (
+              <a className="btn primary" href={downloadUrl(m.files[0].id)}>
+                <Icon name="download" /> Download
+              </a>
+            ) : (
+              <a className="btn primary" href={modelZipUrl(m.id)} title="All files in one .zip">
+                <Icon name="download" /> Download all (.zip)
+              </a>
+            )}
           </div>
           <div className="filelist">
             {[...meshFiles, ...otherFiles].map((f) => (

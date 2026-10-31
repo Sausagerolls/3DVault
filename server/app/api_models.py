@@ -1,3 +1,4 @@
+import mimetypes
 import shutil
 import tempfile
 import zipfile
@@ -390,6 +391,13 @@ def _file_or_404(db: Session, file_id: int) -> File:
 
 CACHE_FOREVER = {"Cache-Control": "private, max-age=31536000, immutable"}
 
+# Slim images have no MIME table entries for 3D printing formats.
+for _ext, _type in {
+    ".3mf": "model/3mf", ".stl": "model/stl", ".obj": "model/obj", ".step": "model/step", ".stp": "model/step",
+    ".amf": "application/x-amf", ".gcode": "text/x.gcode", ".bgcode": "application/octet-stream",
+}.items():
+    mimetypes.add_type(_type, _ext)
+
 
 @router.get("/files/{file_id}/download")
 def download_file(file_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
@@ -397,7 +405,10 @@ def download_file(file_id: int, db: Session = Depends(get_db), user: User = Depe
     path = file_path(f)
     if not path.exists():
         raise HTTPException(404, "File missing on disk")
-    return FileResponse(path, filename=Path(f.rel_path).name)
+    name = Path(f.rel_path).name
+    # Unknown types default to text/plain, and Safari then sniffs a .3mf as a zip and unpacks it.
+    media = mimetypes.guess_type(name)[0] or "application/octet-stream"
+    return FileResponse(path, filename=name, media_type=media, headers={"X-Content-Type-Options": "nosniff"})
 
 
 @router.get("/files/{file_id}/thumb")
