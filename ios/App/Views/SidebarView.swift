@@ -32,6 +32,7 @@ struct SidebarView: View {
     }
     @AppStorage("sidebar.tags") private var showTags = false
     @State private var showSettings = false
+    @State private var importing = false
 
     var body: some View {
         List(selection: $section) {
@@ -116,9 +117,38 @@ struct SidebarView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Retry") { Task { await state.refreshTaxonomy(); state.changed() } }
                 }
+            } else {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button { pickFiles() } label: { Label("Upload Files…", systemImage: "square.and.arrow.up.on.square") }
+                        Divider()
+                        Button { state.newCollection() } label: { Label("New Collection…", systemImage: "rectangle.stack.badge.plus") }
+                        Button { state.newCategory() } label: { Label("New Category…", systemImage: "folder.badge.plus") }
+                    } label: {
+                        Label("Upload", systemImage: "plus")
+                    } primaryAction: {
+                        pickFiles()
+                    }
+                }
             }
         }
         .sheet(isPresented: $showSettings) { SettingsView() }
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.item, .folder], allowsMultipleSelection: true) { result in
+            switch result {
+            case .success(let urls): state.stageForUpload(urls)
+            case .failure(let error): state.report(error)
+            }
+        }
+    }
+
+    /// Same as the library's: reset a picker binding left stuck when the picker was swiped away.
+    private func pickFiles() {
+        guard importing else { importing = true; return }
+        importing = false
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150))
+            importing = true
+        }
     }
 
     private func row(_ title: String, _ icon: String, _ count: Int?) -> some View {
