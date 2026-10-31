@@ -186,34 +186,74 @@ profiles = ProfileIndex()
 def import_profiles(filename: str, data: bytes) -> list[str]:
     """Store profiles exported from Orca, Bambu Studio or PrusaSlicer-style JSON.
 
-    Accepts a single .json preset, or a zip / .orca_printer / .orca_filament / .bbscfg bundle
-    of them. Returns the names imported.
+    Accepts a single .json preset, or a zip / .orca_printer / .orca_filament / .bbscfg / .bbsflmt
+    bundle of them. Returns the names imported. Raises ValueError explaining why when nothing
+    could be imported.
     """
-    names = []
+    names, skipped = [], []
     if filename.lower().endswith(".json"):
-        names.append(_store(json.loads(data)))
+        entries = [(filename, data)]
     else:
         import io
 
-        with zipfile.ZipFile(io.BytesIO(data)) as z:
-            for n in z.namelist():
-                if n.lower().endswith(".json") and not n.startswith("__MACOSX"):
-                    try:
-                        names.append(_store(json.loads(z.read(n))))
-                    except (ValueError, KeyError):
-                        continue
+        try:
+            z = zipfile.ZipFile(io.BytesIO(data))
+        except zipfile.BadZipFile as e:
+            raise ValueError("not a preset file or bundle") from e
+        with z:
+            entries = [
+                (n, z.read(n)) for n in z.namelist()
+                if n.lower().endswith(".json") and not n.startswith("__MACOSX") and Path(n).name != "bundle_structure.json"
+            ]
+    for name, raw in entries:
+        try:
+            preset = json.loads(raw)
+        except ValueError:
+            continue
+        if not isinstance(preset, dict):
+            continue
+        stored, why = _store(preset, name)
+        if stored:
+            names.append(stored)
+        elif why:
+            skipped.append(why)
     profiles.invalidate()
-    return [n for n in names if n]
+    if not names and skipped:
+        raise ValueError("; ".join(dict.fromkeys(skipped)))
+    return names
 
 
-def _store(data: dict) -> str:
-    t = data.get("type")
+# Folder names Bambu Studio and Orca use inside bundles, and keys that only appear in one type.
+_FOLDER_TYPES = {"printer": "machine", "machine": "machine", "process": "process", "print": "process", "filament": "filament"}
+_ID_KEYS = (("print_settings_id", "process"), ("filament_settings_id", "filament"), ("printer_settings_id", "machine"), ("printer_model", "machine"))
+
+
+def _preset_type(data: dict, path: str) -> str | None:
+    """Bambu Studio leaves "type" out of exported presets, so work it out from the folder or keys."""
+    if data.get("type") in TYPES:
+        return data["type"]
+    for part in Path(path).parts[:-1]:
+        if part.lower() in _FOLDER_TYPES:
+            return _FOLDER_TYPES[part.lower()]
+    for key, t in _ID_KEYS:
+        if key in data:
+            return t
+    return None
+
+
+def _store(data: dict, path: str = "") -> tuple[str, str]:
+    """Save one preset. Returns (name, "") when stored, or ("", reason) when skipped."""
     name = data.get("name")
-    if t not in TYPES or not name:
-        return ""
+    t = _preset_type(data, path)
+    if not name or t is None:
+        return "", "no printer, process or filament preset found"
+    if str(data.get("from", "")).lower() == "system" and profiles.find(t, name) is not None:
+        # Bundles carry the built-in printer they were made for; the server already has it.
+        return "", f"“{name}” is already built in"
+    data = {**data, "type": t}
     safe = re.sub(r"[^\w .@()+-]", "_", name)[:120]
     (user_dir() / t / f"{safe}.json").write_text(json.dumps(data, indent=1), encoding="utf-8")
-    return name
+    return name, ""
 
 
 # ---------------------------------------------------------------- slicing
