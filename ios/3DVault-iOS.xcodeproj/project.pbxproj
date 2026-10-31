@@ -10,6 +10,7 @@
 		013A78966CB0DC003053A8CA /* FileCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3390F7B3C86EC8802FFD7DE0 /* FileCache.swift */; };
 		1009A3669EF7F275701431DB /* PrintSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D27DC233491A8EA6FC549F50 /* PrintSheet.swift */; };
 		14459896A884C6B712432A0E /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73B3AC9CF665CE36F876AE98 /* SidebarView.swift */; };
+		155971428900B8EC4D9B1675 /* PrinterWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A14F77846D7D5446B05BE5D /* PrinterWidget.swift */; };
 		272903345439CBD8116306D5 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = C88B06D115765B340A0BE9FA /* Components.swift */; };
 		289A5E30B43867F4E0CCE3AB /* CategoryDrag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9528BDD6DBEDAF935827B26E /* CategoryDrag.swift */; };
 		2D89EB7F544A0FC1E027051D /* Organise.swift in Sources */ = {isa = PBXBuildFile; fileRef = E02E69B5D265777754B6C1BA /* Organise.swift */; };
@@ -26,6 +27,7 @@
 		72D45949F323FBD7E9A2391C /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D360C5F2AF04DF78DAD41339 /* MainView.swift */; };
 		79AFB1FE8CFC8F369A2A1F57 /* VaultKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0F3E4B1752238C805527839B /* VaultKit */; };
 		7AA1F16FEE06373F7167728B /* PrintersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 771212231350788C54CFEE11 /* PrintersView.swift */; };
+		882972DCBC0CC762C3968296 /* VaultKit in Frameworks */ = {isa = PBXBuildFile; productRef = A79FB6EE09CE9226C376DB37 /* VaultKit */; };
 		931F0D87C829510C0A293E6E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = C9D60CCBAC07294727771F09 /* PrivacyInfo.xcprivacy */; };
 		9AA6F290AA5D64BD042ADABE /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB096020F5968AAD825AF0F /* LoginView.swift */; };
 		A1C9E57E42A97DF8AF1D4A55 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 57676A81AD5CDAB13D36633F /* PrivacyInfo.xcprivacy */; };
@@ -41,6 +43,7 @@
 		DA2AC8384F16486CB141598F /* SharedConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C06FF6CB299A7BF70A9A3C3 /* SharedConfig.swift */; };
 		DA9CFC35D50AC2603D3DA4CC /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81361AA711F7175983107DB7 /* AppState.swift */; };
 		E539859091ECE47D7D09EB6E /* PrintActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 678CD052B84EC20C8FC1D779 /* PrintActivityWidget.swift */; };
+		F02C262E0203813CA73D0888 /* SharedConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C06FF6CB299A7BF70A9A3C3 /* SharedConfig.swift */; };
 		F20A3A72DE1E89553B7F3995 /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 311C26001D01B9138E844719 /* Appearance.swift */; };
 		F2B9123F095B5484F989C4BD /* ModelDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A0134562588785D9E552922 /* ModelDetailView.swift */; };
 		FB4AB474E294975AB4A42554 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6DB27ACF8650626DD0449D9D /* Assets.xcassets */; };
@@ -81,6 +84,7 @@
 /* Begin PBXFileReference section */
 		00D7E44E194A1663153F6F4E /* 3DVault.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = 3DVault.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		09D7E6253FA25FA7B25E7CFB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		0A14F77846D7D5446B05BE5D /* PrinterWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrinterWidget.swift; sourceTree = "<group>"; };
 		0C06FF6CB299A7BF70A9A3C3 /* SharedConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedConfig.swift; sourceTree = "<group>"; };
 		146543F98888099A20FB665A /* BulkSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkSheet.swift; sourceTree = "<group>"; };
 		25FB67384B91E42FD5E47AF8 /* 3DVaultShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = 3DVaultShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -117,6 +121,7 @@
 		D5A27FEADB0FD643CE3EDCE2 /* 3DVault.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = 3DVault.entitlements; sourceTree = "<group>"; };
 		E02E69B5D265777754B6C1BA /* Organise.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Organise.swift; sourceTree = "<group>"; };
 		E91D361DFB7ECE7B1ACC2FB1 /* VaultApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultApp.swift; sourceTree = "<group>"; };
+		EA1D6F43C62985B7F8EED710 /* Widgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Widgets.entitlements; sourceTree = "<group>"; };
 		F7E7FFAF33780C807E378CE9 /* ThumbnailLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailLoader.swift; sourceTree = "<group>"; };
 		FE917D3308F3E7FE37469E60 /* Share.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Share.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -127,6 +132,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				A9A0FDF25D9DB1498E729F70 /* VaultKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8160149532C4F873C07A0263 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				882972DCBC0CC762C3968296 /* VaultKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -243,7 +256,9 @@
 			children = (
 				09D7E6253FA25FA7B25E7CFB /* Info.plist */,
 				678CD052B84EC20C8FC1D779 /* PrintActivityWidget.swift */,
+				0A14F77846D7D5446B05BE5D /* PrinterWidget.swift */,
 				C9D60CCBAC07294727771F09 /* PrivacyInfo.xcprivacy */,
+				EA1D6F43C62985B7F8EED710 /* Widgets.entitlements */,
 			);
 			path = Widgets;
 			sourceTree = "<group>";
@@ -328,6 +343,7 @@
 			buildPhases = (
 				7D61D47E717F746AFE7F151A /* Sources */,
 				05F2844FC9B0B01290EEC491 /* Resources */,
+				8160149532C4F873C07A0263 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -335,6 +351,7 @@
 			);
 			name = 3DVaultWidgets;
 			packageProductDependencies = (
+				A79FB6EE09CE9226C376DB37 /* VaultKit */,
 			);
 			productName = 3DVaultWidgets;
 			productReference = 518593DD28B53862031DF66C /* 3DVaultWidgets.appex */;
@@ -463,6 +480,8 @@
 			files = (
 				AF4874802E9571033439E078 /* PrintActivity.swift in Sources */,
 				E539859091ECE47D7D09EB6E /* PrintActivityWidget.swift in Sources */,
+				155971428900B8EC4D9B1675 /* PrinterWidget.swift in Sources */,
+				F02C262E0203813CA73D0888 /* SharedConfig.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -503,6 +522,7 @@
 		4B54D0F90F562EEC23790CD2 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Widgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -705,6 +725,7 @@
 		E6D421DDB5F04C86678B3246 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Widgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -773,6 +794,10 @@
 			productName = VaultKit;
 		};
 		1B3062130EF3B37ACCD459D5 /* VaultKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VaultKit;
+		};
+		A79FB6EE09CE9226C376DB37 /* VaultKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = VaultKit;
 		};

@@ -19,6 +19,11 @@ struct VaultApp: App {
                         state.openModel = id
                         return
                     }
+                    // threedvault://printers from the printer widget.
+                    if url.scheme == "threedvault", url.host() == "printers" {
+                        state.openPrinters = true
+                        return
+                    }
                     guard url.isFileURL, state.client != nil else { return }
                     state.stageForUpload([url])
                 }

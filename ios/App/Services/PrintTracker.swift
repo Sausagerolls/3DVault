@@ -3,6 +3,7 @@ import BackgroundTasks
 import UIKit
 import UserNotifications
 import VaultKit
+import WidgetKit
 
 /// Follows this person's prints on the device itself, with no push service:
 /// - a Live Activity that counts down to the estimated finish on its own, corrected
@@ -57,6 +58,11 @@ final class PrintTracker: NSObject, UNUserNotificationCenterDelegate {
             }
         }
         scheduleRefresh()
+        // Fresh camera picture and progress for the printer widget. Reloads asked for while the
+        // app is open don't count against the widget's daily refresh budget.
+        if UIApplication.shared.applicationState == .active || !running.isEmpty {
+            WidgetCenter.shared.reloadTimelines(ofKind: "PrinterWidget")
+        }
     }
 
     private func content(_ job: PrintJob) -> PrintActivityAttributes.ContentState {

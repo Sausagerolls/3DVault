@@ -74,6 +74,12 @@ struct MainView: View {
                 }
             }
         }
+        .onChange(of: state.openPrinters) {
+            guard state.openPrinters else { return }
+            state.openPrinters = false
+            section = .printers
+            column = .detail
+        }
         .onChange(of: state.openModel) {
             guard let id = state.openModel else { return }
             state.openModel = nil

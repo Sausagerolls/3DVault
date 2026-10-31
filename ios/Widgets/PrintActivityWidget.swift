@@ -6,6 +6,7 @@ import WidgetKit
 struct VaultWidgets: WidgetBundle {
     var body: some Widget {
         PrintActivityWidget()
+        PrinterWidget()
     }
 }
 

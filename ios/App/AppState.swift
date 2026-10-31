@@ -30,6 +30,8 @@ final class AppState {
     var preparing: String?
     /// A model to open, from a notification or Live Activity tap.
     var openModel: Int?
+    /// Set by the printer widget's link to show the Printers screen.
+    var openPrinters = false
     /// Bumped after any change so lists reload.
     var revision = 0
 
