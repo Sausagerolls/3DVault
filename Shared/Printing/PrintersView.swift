@@ -66,6 +66,7 @@ private struct PrinterCard: View {
     let refresh: () async -> Void
     @State private var confirmCancel = false
     @State private var busy = false
+    @State private var alarmError: String?
 
     private var s: PrinterStatus { machine.status }
 
@@ -123,6 +124,10 @@ private struct PrinterCard: View {
                     }
                     Button(role: .destructive) { confirmCancel = true } label: { Label("Stop", systemImage: "stop.fill") }
                         .buttonStyle(.bordered)
+                    #if os(iOS)
+                    Spacer()
+                    alarmButton(job)
+                    #endif
                 }
                 .disabled(busy)
             } else if let msg = s.message, !msg.isEmpty {
@@ -160,6 +165,39 @@ private struct PrinterCard: View {
             Text("The printer stops and the job can't be resumed.")
         }
     }
+
+    #if os(iOS)
+    /// Sets an alarm for the estimated finish, or shows the one already set and removes it.
+    @ViewBuilder private func alarmButton(_ job: PrintJob) -> some View {
+        let alarms = PrintAlarms.shared
+        if let entry = alarms.entries[job.id] {
+            Button { alarms.remove(jobId: job.id) } label: {
+                Label(entry.date.map { formatFinishTime($0) } ?? "Alarm", systemImage: "alarm.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .accessibilityHint("Removes the alarm")
+        } else if s.state == "printing", let r = s.remainingS, r > 60 {
+            Button {
+                Task {
+                    do {
+                        try await alarms.add(jobId: job.id, modelName: job.modelName, at: .now.addingTimeInterval(TimeInterval(r)))
+                    } catch {
+                        alarmError = error.localizedDescription
+                    }
+                }
+            } label: {
+                Label("Alarm", systemImage: "alarm")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityHint("Sets an alarm for the estimated finish time")
+            .alert("Couldn't Set Alarm", isPresented: Binding(get: { alarmError != nil }, set: { if !$0 { alarmError = nil } })) {
+                Button("OK") {}
+            } message: {
+                Text(alarmError ?? "")
+            }
+        }
+    }
+    #endif
 
     private func tempLabel(_ name: String, _ temp: Double, _ target: Double?) -> some View {
         VStack(alignment: .trailing, spacing: 0) {

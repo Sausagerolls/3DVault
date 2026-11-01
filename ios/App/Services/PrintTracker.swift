@@ -33,6 +33,7 @@ final class PrintTracker: NSObject, UNUserNotificationCenterDelegate {
             await activity.end(nil, dismissalPolicy: .immediate)
         }
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        PrintAlarms.shared.removeAll()
     }
 
     private var client: APIClient? { state?.client ?? SharedConfig.client() }
@@ -57,6 +58,7 @@ final class PrintTracker: NSObject, UNUserNotificationCenterDelegate {
                 await activity.end(nil, dismissalPolicy: .immediate)
             }
         }
+        await PrintAlarms.shared.sync(client: client)
         scheduleRefresh()
         // Fresh camera picture and progress for the printer widget. Reloads asked for while the
         // app is open don't count against the widget's daily refresh budget.

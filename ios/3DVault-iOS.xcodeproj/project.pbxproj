@@ -40,6 +40,7 @@
 		CE6FC820B1DC36B1A8DAF007 /* BulkSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 146543F98888099A20FB665A /* BulkSheet.swift */; };
 		CF755333D94F7E310EBD91C1 /* ModelActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B510AB899FF17418EC795E8F /* ModelActions.swift */; };
 		D426E6BCB162A9725878F462 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 82A4AE1F1A81BA244996E161 /* PrivacyInfo.xcprivacy */; };
+		D7D88292C4D5145C273F4E6F /* PrintAlarms.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B36B516E3F01C878657284E /* PrintAlarms.swift */; };
 		DA2AC8384F16486CB141598F /* SharedConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C06FF6CB299A7BF70A9A3C3 /* SharedConfig.swift */; };
 		DA9CFC35D50AC2603D3DA4CC /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81361AA711F7175983107DB7 /* AppState.swift */; };
 		E539859091ECE47D7D09EB6E /* PrintActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 678CD052B84EC20C8FC1D779 /* PrintActivityWidget.swift */; };
@@ -97,6 +98,7 @@
 		518593DD28B53862031DF66C /* 3DVaultWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = 3DVaultWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		5252BCA52B74D2597C6EFF0D /* CategoryPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryPicker.swift; sourceTree = "<group>"; };
 		57676A81AD5CDAB13D36633F /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		5B36B516E3F01C878657284E /* PrintAlarms.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintAlarms.swift; sourceTree = "<group>"; };
 		678CD052B84EC20C8FC1D779 /* PrintActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintActivityWidget.swift; sourceTree = "<group>"; };
 		6A0134562588785D9E552922 /* ModelDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDetailView.swift; sourceTree = "<group>"; };
 		6DB27ACF8650626DD0449D9D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -284,6 +286,7 @@
 				3390F7B3C86EC8802FFD7DE0 /* FileCache.swift */,
 				2C9B7AD712936FF78CBDE749 /* PinStore.swift */,
 				6ECA00596FF9DBFE44A6CD58 /* PrintActivity.swift */,
+				5B36B516E3F01C878657284E /* PrintAlarms.swift */,
 				4B7FE1A92193E9ABCB07E51E /* PrintTracker.swift */,
 				0C06FF6CB299A7BF70A9A3C3 /* SharedConfig.swift */,
 				F7E7FFAF33780C807E378CE9 /* ThumbnailLoader.swift */,
@@ -462,6 +465,7 @@
 				B8CDC40A406464EB1C2AF448 /* PinStore.swift in Sources */,
 				47A1F1BB10EAFDFCDB1A7039 /* Platform.swift in Sources */,
 				4CF99A0BC10580621CA960E4 /* PrintActivity.swift in Sources */,
+				D7D88292C4D5145C273F4E6F /* PrintAlarms.swift in Sources */,
 				1009A3669EF7F275701431DB /* PrintSheet.swift in Sources */,
 				AFB09C0CF71A32C216D20C7A /* PrintTracker.swift in Sources */,
 				7AA1F16FEE06373F7167728B /* PrintersView.swift in Sources */,

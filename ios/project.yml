@@ -48,6 +48,7 @@ targets:
         NSLocalNetworkUsageDescription: 3DVault connects to your 3DVault server on the local network.
         NSCameraUsageDescription: Take photos of your prints to add to a model.
         NSPhotoLibraryUsageDescription: Add photos of your prints to a model.
+        NSAlarmKitUsageDescription: Ring an alarm when a print should be finished.
         NSSupportsLiveActivities: true
         UIBackgroundModes: [fetch]
         BGTaskSchedulerPermittedIdentifiers: [com.3dvault.mac.refresh]
