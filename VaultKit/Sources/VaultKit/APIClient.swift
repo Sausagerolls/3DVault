@@ -108,6 +108,15 @@ public final class APIClient: Sendable {
 
     public func me() async throws -> VaultUser { try await get("auth/me") }
 
+    /// For checking the connection, without waiting out the usual 60 second timeout.
+    public func me(timeout: TimeInterval) async throws -> VaultUser {
+        var req = URLRequest(url: url("auth/me"))
+        req.timeoutInterval = timeout
+        let (data, resp) = try await session.data(for: authorised(req))
+        try Self.check(resp, data)
+        return try decode(data)
+    }
+
     // MARK: models
 
     public func models(_ query: ModelQuery, page: Int = 1, pageSize: Int = 100) async throws -> Page<ModelSummary> {

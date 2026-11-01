@@ -25,7 +25,8 @@ final class LibraryModel {
     }
 
     func loadMore(state: AppState, replacing: Bool = false) async {
-        guard let client = state.client, !loading, replacing || items.count < total else { return }
+        // A reload goes ahead even if a request is still running, since its result is ignored.
+        guard let client = state.client, replacing || (!loading && items.count < total) else { return }
         let t = token
         loading = true
         defer { loading = false }

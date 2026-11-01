@@ -35,6 +35,9 @@ final class AppState {
     /// Bumped after any change so lists reload.
     var revision = 0
 
+    private var reconnecting = false
+    private var foregroundedAt = Date.distantPast
+
     let thumbnails = ThumbnailLoader()
     let pins = PinStore()
     let files = FileCache()
@@ -82,6 +85,7 @@ final class AppState {
             thumbnails.client = c
             files.client = c
             pins.use(c)
+            Task { await reconnect() }
         }
     }
 
@@ -111,6 +115,53 @@ final class AppState {
         Task { await refreshTaxonomy() }
     }
 
+    // MARK: connection
+
+    /// The network often isn't back for a few seconds after the app returns, and requests left
+    /// running when it was suspended fail, so failures around now don't mean the server is down.
+    func returnedToForeground() {
+        foregroundedAt = .now
+        guard user != nil else { return }
+        if offline {
+            Task { await reconnect() }
+        } else {
+            changed()
+        }
+    }
+
+    /// Checks the server after a failed request, trying a few times before going offline.
+    /// Also brings the app back from offline as soon as the server answers.
+    func reconnect(delays: [Double] = [0, 1, 2, 4]) async {
+        guard !reconnecting, let client else { return }
+        reconnecting = true
+        defer { reconnecting = false }
+        for delay in delays {
+            if delay > 0 { try? await Task.sleep(for: .seconds(delay)) }
+            if Task.isCancelled { return }
+            do {
+                let me = try await client.me(timeout: 5)
+                // After starting offline, `user` is a placeholder until now.
+                if user != me { user = me }
+                offline = false
+                await refreshTaxonomy()
+                // Lists that failed to load try again.
+                revision += 1
+                return
+            } catch let e as APIError where e.isUnauthorised {
+                await signOut()
+                return
+            } catch {
+                if Self.isCancellation(error) { return }
+            }
+        }
+        // A suspended app can't reach anything; that says nothing about the server.
+        if UIApplication.shared.applicationState == .active { offline = true }
+    }
+
+    private static func isCancellation(_ error: Error) -> Bool {
+        error is CancellationError || (error as? URLError)?.code == .cancelled
+    }
+
     // MARK: data
 
     func refreshTaxonomy() async {
@@ -129,6 +180,8 @@ final class AppState {
             if l != self.collections { self.collections = l }
             self.stats = s
             offline = false
+        } catch is URLError {
+            await reconnect()
         } catch {
             report(error)
         }
@@ -144,7 +197,12 @@ final class AppState {
             Task { await signOut() }
             return
         }
-        if (error as? URLError) != nil { offline = true }
+        if Self.isCancellation(error) { return }
+        if error is URLError {
+            Task { await reconnect() }
+            // Reconnecting reloads whatever failed just after returning to the app.
+            if Date.now.timeIntervalSince(foregroundedAt) < 10 || UIApplication.shared.applicationState != .active { return }
+        }
         show(error.localizedDescription, isError: true)
     }
 
