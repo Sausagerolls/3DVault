@@ -199,6 +199,9 @@ struct PrinterWidgetView: View {
                     }
                     ProgressView(value: entry.progress, total: 100).tint(.orange)
                     timeText.font(.caption2).foregroundStyle(.secondary)
+                    if !compact, entry.state == "printing", let end = entry.endDate, end > .now {
+                        Text("Done about \(formatFinishTime(end))").font(.caption2).foregroundStyle(.secondary)
+                    }
                 } else {
                     Text(stateLabel).font(.caption).foregroundStyle(entry.state == "failed" ? .red : .secondary)
                     if !compact, let m = entry.message, !m.isEmpty {

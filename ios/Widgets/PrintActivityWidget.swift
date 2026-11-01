@@ -1,5 +1,6 @@
 import ActivityKit
 import SwiftUI
+import VaultKit
 import WidgetKit
 
 @main
@@ -143,7 +144,7 @@ private func stateDetail(_ s: PrintActivityAttributes.ContentState) -> String {
     default:
         var parts: [String] = []
         if let l = s.layer, let t = s.totalLayers { parts.append("Layer \(l)/\(t)") }
-        parts.append(s.endDate.map { "Done about \($0.formatted(date: .omitted, time: .shortened))" } ?? "Printing")
+        parts.append(s.endDate.map { "Done about \(formatFinishTime($0))" } ?? "Printing")
         return parts.joined(separator: " · ")
     }
 }

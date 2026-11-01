@@ -179,6 +179,16 @@ public func formatDuration(_ seconds: Int?) -> String? {
     return h > 0 ? "\(h)h \(String(format: "%02d", m))m" : "\(m)m"
 }
 
+/// When a print should finish: "17:42" today, "07:10 tomorrow", or "07:10 Wed" further out.
+public func formatFinishTime(_ end: Date, from now: Date = .now, calendar: Calendar = .current) -> String {
+    let time = end.formatted(Date.FormatStyle(date: .omitted, time: .shortened, timeZone: calendar.timeZone))
+    if calendar.isDate(end, inSameDayAs: now) { return time }
+    if let next = calendar.date(byAdding: .day, value: 1, to: now), calendar.isDate(end, inSameDayAs: next) {
+        return "\(time) tomorrow"
+    }
+    return "\(time) \(end.formatted(Date.FormatStyle(timeZone: calendar.timeZone).weekday(.abbreviated)))"
+}
+
 // MARK: - Printing API
 
 extension APIClient {

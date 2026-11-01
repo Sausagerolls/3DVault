@@ -24,6 +24,17 @@ export const duration = (s: number | null | undefined) => {
   return h ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m`;
 };
 
+/** When a print should finish: "17:42" today, "07:10 tomorrow", or "07:10 Wed" further out. */
+export const finishTime = (remaining: number, now = new Date()) => {
+  const end = new Date(now.getTime() + remaining * 1000);
+  const time = end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  if (end.toDateString() === now.toDateString()) return time;
+  if (end.toDateString() === tomorrow.toDateString()) return `${time} tomorrow`;
+  return `${time} ${end.toLocaleDateString([], { weekday: "short" })}`;
+};
+
 const STATE_LABELS: Record<string, string> = {
   idle: "Ready", preparing: "Preparing", printing: "Printing", paused: "Paused", finished: "Finished", failed: "Failed",
   offline: "Offline", queued: "Queued", uploading: "Sending", cancelled: "Cancelled", needs_clear: "Clear bed",
@@ -117,6 +128,9 @@ function PrinterCard({ m }: { m: Machine }) {
             <span className="spacer" />
             {busy && duration(s.remaining_s) && <span>{duration(s.remaining_s)} left</span>}
           </div>
+          {s.state === "printing" && !!s.remaining_s && s.remaining_s > 0 && (
+            <div className="dim" style={{ fontSize: 13, textAlign: "right" }}>Done about {finishTime(s.remaining_s)}</div>
+          )}
           <div className="row" style={{ gap: 8 }}>
             {s.state === "paused" ? (
               <button className="small primary" onClick={() => act("resume")}>Resume</button>

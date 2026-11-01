@@ -104,6 +104,11 @@ private struct PrinterCard: View {
                             if let r = formatDuration(s.remainingS), s.isBusy { Text("\(r) left") }
                         }
                         .font(.caption).foregroundStyle(.secondary)
+                        if s.state == "printing", let r = s.remainingS, r > 0 {
+                            Text("Done about \(formatFinishTime(.now.addingTimeInterval(TimeInterval(r))))")
+                                .font(.caption).foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                        }
                     }
                 }
                 .buttonStyle(.plain)

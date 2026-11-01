@@ -35,3 +35,32 @@ final class VaultKitTests: XCTestCase {
         XCTAssertTrue(names.contains("untriaged"))
     }
 }
+
+final class FinishTimeTests: XCTestCase {
+    private var calendar: Calendar = {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = TimeZone(identifier: "Europe/London")!
+        return c
+    }()
+
+    private func date(_ day: Int, _ hour: Int, _ minute: Int = 0) -> Date {
+        calendar.date(from: DateComponents(year: 2026, month: 11, day: day, hour: hour, minute: minute))!
+    }
+
+    func testSameDayShowsOnlyTheTime() {
+        let s = formatFinishTime(date(4, 17, 42), from: date(4, 9), calendar: calendar)
+        XCTAssertFalse(s.contains("tomorrow"))
+        XCTAssertTrue(s.contains("42"), s)
+    }
+
+    func testNextDaySaysTomorrow() {
+        let s = formatFinishTime(date(5, 7, 10), from: date(4, 23), calendar: calendar)
+        XCTAssertTrue(s.hasSuffix("tomorrow"), s)
+    }
+
+    func testLaterShowsTheWeekday() {
+        // 6 November 2026 is a Friday.
+        let s = formatFinishTime(date(6, 7, 10), from: date(4, 9), calendar: calendar)
+        XCTAssertTrue(s.hasSuffix("Fri"), s)
+    }
+}
