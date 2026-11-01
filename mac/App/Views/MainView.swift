@@ -24,6 +24,8 @@ final class LibraryModel {
             return
         }
         items = []
+        // Any request still running is ignored now, so it mustn't hold up this one.
+        loading = false
         await loadMore(state: state)
     }
 
@@ -40,7 +42,7 @@ final class LibraryModel {
             items += p.items
             error = nil
         } catch {
-            guard t == token else { return }
+            guard t == token, !AppState.isCancellation(error) else { return }
             self.error = error.localizedDescription
             state.report(error)
         }

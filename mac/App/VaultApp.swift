@@ -82,13 +82,21 @@ struct RootView: View {
         .animation(.spring(duration: 0.3), value: state.banner)
         // Pick up categories, tags and models changed from other devices.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            if state.user != nil, !state.offline { state.changed() }
+            state.returnedToForeground()
+        }
+        // Waking from sleep doesn't always make the app active, as it may already be frontmost.
+        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification)) { _ in
+            state.returnedToForeground()
         }
         .task(id: state.user?.id) {
             guard state.user != nil else { return }
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(60))
-                if NSApp.isActive, !state.offline { await state.refreshTaxonomy() }
+                try? await Task.sleep(for: .seconds(state.offline ? 30 : 60))
+                if state.offline {
+                    await state.reconnect(delays: [0])
+                } else if NSApp.isActive {
+                    await state.refreshTaxonomy()
+                }
             }
         }
     }

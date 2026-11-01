@@ -236,7 +236,12 @@ struct SidebarView: View {
                     }
                     Spacer()
                     if state.offline {
-                        Button("Retry") { Task { await state.refreshTaxonomy(); state.changed() } }
+                        Button("Retry") {
+                            Task {
+                                await state.reconnect(delays: [0])
+                                if state.offline { state.show("Can't reach the server.", isError: true) }
+                            }
+                        }
                             .controlSize(.small)
                     }
                 }
