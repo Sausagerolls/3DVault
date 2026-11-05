@@ -67,6 +67,7 @@ private struct PrinterCard: View {
     @State private var confirmCancel = false
     @State private var busy = false
     @State private var alarmError: String?
+    @State private var showQueue = false
 
     private var s: PrinterStatus { machine.status }
 
@@ -145,17 +146,33 @@ private struct PrinterCard: View {
                 }
             }
 
+            #if os(macOS)
+            // In a three-column window a NavigationLink opens in the detail column, covering the
+            // model details, with no way back. A sheet opens and closes cleanly.
+            Button { showQueue = true } label: { queueLabel }
+                .buttonStyle(.plain)
+                .sheet(isPresented: $showQueue) {
+                    NavigationStack {
+                        PrintQueueView(machine: machine) { id in
+                            showQueue = false
+                            open(id)
+                        }
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Done") { showQueue = false }
+                            }
+                        }
+                    }
+                    .frame(minWidth: 460, idealWidth: 520, minHeight: 420, idealHeight: 560)
+                }
+            #else
             NavigationLink {
                 PrintQueueView(machine: machine, open: open)
             } label: {
-                HStack {
-                    Label(machine.queued == 0 ? "Queue and history" : "\(machine.queued) waiting in queue", systemImage: "list.bullet")
-                    Spacer()
-                    Image(systemName: "chevron.right").foregroundStyle(.tertiary)
-                }
-                .font(.callout)
+                queueLabel
             }
             .buttonStyle(.plain)
+            #endif
         }
         .padding(16)
         .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: 16))
@@ -164,6 +181,16 @@ private struct PrinterCard: View {
         } message: {
             Text("The printer stops and the job can't be resumed.")
         }
+    }
+
+    private var queueLabel: some View {
+        HStack {
+            Label(machine.queued == 0 ? "Queue and history" : "\(machine.queued) waiting in queue", systemImage: "list.bullet")
+            Spacer()
+            Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+        }
+        .font(.callout)
+        .contentShape(Rectangle())
     }
 
     #if os(iOS)
