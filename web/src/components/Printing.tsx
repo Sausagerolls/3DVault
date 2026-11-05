@@ -13,6 +13,7 @@ import {
   type ToolpathSummary,
   type VaultFile,
 } from "../api";
+import { useUser } from "../App";
 import { Modal, useToast } from "./ui";
 
 const BASE = "/api/v1";
@@ -67,9 +68,13 @@ export function printableFiles(m: ModelDetail): VaultFile[] {
 
 export function PrintersPage() {
   const machines = useQuery({ queryKey: ["machines"], queryFn: () => api<Machine[]>("/machines"), refetchInterval: 2000 });
+  const user = useUser();
   return (
     <div className="page narrow">
-      <h1 style={{ marginBottom: 16 }}>Printers</h1>
+      <div className="row" style={{ marginBottom: 16 }}>
+        <h1 className="grow">Printers</h1>
+        {user.role === "admin" && <Link className="btn" to="/settings">Manage printers</Link>}
+      </div>
       {machines.data && !machines.data.length && (
         <p className="dim">
           No printers yet. An admin can add them in <Link to="/settings" className="link">Settings › Printers</Link>.
@@ -86,6 +91,7 @@ function PrinterCard({ m }: { m: Machine }) {
   const toast = useToast();
   const qc = useQueryClient();
   const [showQueue, setShowQueue] = useState(false);
+  const [fullScreen, setFullScreen] = useState(false);
   const s = m.status;
   const job = m.active_job;
   const busy = ["preparing", "printing", "paused"].includes(s.state);
@@ -109,7 +115,13 @@ function PrinterCard({ m }: { m: Machine }) {
           Nozzle {temp(s.nozzle)} · Bed {temp(s.bed)}
         </span>
       </div>
-      {m.has_camera && s.state !== "offline" && <Camera id={m.id} />}
+      {m.has_camera && s.state !== "offline" && (
+        <div style={{ position: "relative" }}>
+          <Camera id={m.id} />
+          <button className="small camera-expand" onClick={() => setFullScreen(true)} title="Show the camera full screen">Full screen</button>
+        </div>
+      )}
+      {fullScreen && <CameraFullScreen m={m} temp={temp} onClose={() => setFullScreen(false)} />}
       {job ? (
         <div className="col" style={{ gap: 6 }}>
           <div className="row">
@@ -154,6 +166,74 @@ function PrinterCard({ m }: { m: Machine }) {
       </button>
       {showQueue && <JobList machineId={m.id} />}
     </section>
+  );
+}
+
+/** The camera filling the screen, with the printer's progress in a box along the bottom. */
+function CameraFullScreen({ m, temp, onClose }: { m: Machine; temp: (t?: { temp: number | null; target: number | null }) => string; onClose: () => void }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [src, setSrc] = useState(`${BASE}/machines/${m.id}/camera?t=0`);
+  const s = m.status;
+  const job = m.active_job;
+  const progress = s.progress ?? job?.progress ?? 0;
+  // The card redraws with each status check, which mustn't count as leaving and coming back.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    // Phones can't always go full screen. The box already covers the page, so that's fine.
+    box.current?.requestFullscreen?.().catch(() => {});
+    const leave = () => {
+      if (!document.fullscreenElement) closeRef.current();
+    };
+    const key = (e: KeyboardEvent) => e.key === "Escape" && closeRef.current();
+    document.addEventListener("fullscreenchange", leave);
+    window.addEventListener("keydown", key);
+    return () => {
+      document.removeEventListener("fullscreenchange", leave);
+      window.removeEventListener("keydown", key);
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    };
+  }, []);
+  return (
+    <div ref={box} className="camera-full">
+      {/* Asks for the next picture once this one has arrived, so it can't outrun the printer. */}
+      <img
+        src={src}
+        alt="Printer camera"
+        onLoad={() => setTimeout(() => setSrc(`${BASE}/machines/${m.id}/camera?t=${Date.now()}`), 500)}
+        onError={() => setTimeout(() => setSrc(`${BASE}/machines/${m.id}/camera?t=${Date.now()}`), 3000)}
+      />
+      <button className="camera-close" onClick={onClose} aria-label="Close camera">×</button>
+      <div className="camera-info">
+        <div className="row" style={{ gap: 10 }}>
+          <strong className="ellipsis">{m.name}</strong>
+          <StateBadge state={s.state} />
+          <span className="spacer" />
+          <span style={{ fontSize: 13, whiteSpace: "nowrap" }}>Nozzle {temp(s.nozzle)} · Bed {temp(s.bed)}</span>
+        </div>
+        {job ? (
+          <>
+            <div className="row">
+              <span className="grow ellipsis">{job.model_name}</span>
+              <strong style={{ fontSize: 18 }}>{Math.round(progress)}%</strong>
+            </div>
+            <progress max={100} value={progress} style={{ width: "100%" }} />
+            <div className="row" style={{ fontSize: 13, opacity: 0.8, gap: 14 }}>
+              {s.layer != null && s.total_layers != null && <span>Layer {s.layer} of {s.total_layers}</span>}
+              <span className="spacer" />
+              {s.state === "printing" && !!s.remaining_s && s.remaining_s > 0 && (
+                <>
+                  <span>{duration(s.remaining_s)} left</span>
+                  <span>Done about {finishTime(s.remaining_s)}</span>
+                </>
+              )}
+            </div>
+          </>
+        ) : (
+          s.message && <span style={{ fontSize: 13, opacity: 0.8 }}>{s.message}</span>
+        )}
+      </div>
+    </div>
   );
 }
 

@@ -9,12 +9,23 @@ struct PrintersView: View {
     @State private var loaded = false
     @State private var error: String?
     @State private var showSetup = false
+    #if DEBUG
+    @State private var testCamera: Int?
+    #endif
 
     private var isAdmin: Bool { state.user?.isAdmin == true }
 
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 16) {
+                if isAdmin && !machines.isEmpty {
+                    HStack {
+                        Spacer()
+                        Button { showSetup = true } label: { Label("Manage Printers", systemImage: "gearshape") }
+                            .buttonStyle(.bordered)
+                            .help("Pair printers and change their settings")
+                    }
+                }
                 ForEach(machines) { m in
                     PrinterCard(machine: m, open: open) { await refresh() }
                 }
@@ -39,14 +50,6 @@ struct PrintersView: View {
             }
         }
         .navigationTitle("Printers")
-        .toolbar {
-            if isAdmin {
-                ToolbarItem(placement: .primaryAction) {
-                    Button { showSetup = true } label: { Label("Manage Printers", systemImage: "slider.horizontal.3") }
-                        .help("Pair printers and change their settings")
-                }
-            }
-        }
         .sheet(isPresented: $showSetup, onDismiss: { Task { await refresh() } }) {
             NavigationStack {
                 PrinterSetupView()
@@ -58,8 +61,22 @@ struct PrintersView: View {
             .frame(minWidth: 520, idealWidth: 580, minHeight: 460, idealHeight: 640, maxHeight: 700)
             #endif
         }
+        #if DEBUG && os(iOS)
+        .fullScreenCover(isPresented: Binding(get: { testCamera != nil }, set: { if !$0 { testCamera = nil } })) {
+            if let testCamera { CameraFullScreenView(machineId: testCamera) { self.testCamera = nil } }
+        }
+        #endif
         #if DEBUG
         .task {
+            // Testing: VAULT_TEST_CAMERA=<printer id> opens that camera full screen.
+            if let id = ProcessInfo.processInfo.environment["VAULT_TEST_CAMERA"].flatMap(Int.init) {
+                try? await Task.sleep(for: .seconds(1))
+                #if os(macOS)
+                CameraWindow.open(machineId: id, state: state)
+                #else
+                testCamera = id
+                #endif
+            }
             // Testing: VAULT_TEST_SETUP=1 opens printer setup.
             if ProcessInfo.processInfo.environment["VAULT_TEST_SETUP"] != nil {
                 try? await Task.sleep(for: .seconds(1))
@@ -106,6 +123,9 @@ private struct PrinterCard: View {
     @State private var busy = false
     @State private var alarmError: String?
     @State private var showQueue = false
+    @State private var editing: MachineDraft?
+    @State private var kinds: [MachineKind] = []
+    @State private var fullScreen = false
 
     private var s: PrinterStatus { machine.status }
 
@@ -123,10 +143,33 @@ private struct PrinterCard: View {
                 if let b = s.bed?.temp {
                     tempLabel("Bed", b, s.bed?.target)
                 }
+                if state.user?.isAdmin == true {
+                    Button { editPrinter() } label: { Label("Settings", systemImage: "gearshape") }
+                        #if os(iOS)
+                        // The word doesn't fit beside the temperatures on a phone.
+                        .labelStyle(.iconOnly)
+                        #endif
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .padding(.leading, 8)
+                        .help("Change this printer's settings")
+                }
             }
 
             if machine.hasCamera && s.state != "offline" {
                 CameraView(machineId: machine.id)
+                    .overlay(alignment: .topTrailing) {
+                        Button { openCamera() } label: {
+                            Label("Full Screen", systemImage: "arrow.up.left.and.arrow.down.right")
+                                .font(.caption.weight(.semibold))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(.ultraThinMaterial, in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .padding(8)
+                        .help("Show the camera full screen")
+                    }
             }
 
             if let job = machine.activeJob {
@@ -212,6 +255,19 @@ private struct PrinterCard: View {
             .buttonStyle(.plain)
             #endif
         }
+        .sheet(item: $editing) { draft in
+            NavigationStack {
+                MachineEditor(draft: draft, kinds: kinds) { await refresh() }
+            }
+            #if os(macOS)
+            .frame(minWidth: 480, idealWidth: 520, minHeight: 460, idealHeight: 620, maxHeight: 680)
+            #endif
+        }
+        #if os(iOS)
+        .fullScreenCover(isPresented: $fullScreen) {
+            CameraFullScreenView(machineId: machine.id) { fullScreen = false }
+        }
+        #endif
         .padding(16)
         .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: 16))
         .confirmationDialog("Stop this print?", isPresented: $confirmCancel, titleVisibility: .visible) {
@@ -270,6 +326,26 @@ private struct PrinterCard: View {
             Text(name).font(.caption2).foregroundStyle(.secondary)
         }
         .padding(.leading, 8)
+    }
+
+    private func openCamera() {
+        #if os(macOS)
+        CameraWindow.open(machineId: machine.id, state: state)
+        #else
+        fullScreen = true
+        #endif
+    }
+
+    private func editPrinter() {
+        guard let client = state.client else { return }
+        Task {
+            do {
+                kinds = try await client.machineKinds()
+                editing = MachineDraft(machine: machine)
+            } catch {
+                state.report(error)
+            }
+        }
     }
 
     private func control(_ action: String) {

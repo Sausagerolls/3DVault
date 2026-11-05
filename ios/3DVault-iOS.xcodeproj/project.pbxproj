@@ -35,6 +35,7 @@
 		A1C9E57E42A97DF8AF1D4A55 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 57676A81AD5CDAB13D36633F /* PrivacyInfo.xcprivacy */; };
 		A7C096001A3FF4D52E3243B2 /* ThumbnailLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E7FFAF33780C807E378CE9 /* ThumbnailLoader.swift */; };
 		A9A0FDF25D9DB1498E729F70 /* VaultKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1B3062130EF3B37ACCD459D5 /* VaultKit */; };
+		AD3754AE6ADADA95D85A16E1 /* CameraFullScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97DC9D8BA47E257BE4D53975 /* CameraFullScreen.swift */; };
 		AF4874802E9571033439E078 /* PrintActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ECA00596FF9DBFE44A6CD58 /* PrintActivity.swift */; };
 		AFB09C0CF71A32C216D20C7A /* PrintTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B7FE1A92193E9ABCB07E51E /* PrintTracker.swift */; };
 		B0983655ED5BA87498BEA1C0 /* UploadSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50D7A0E503827618FB0DE788 /* UploadSheet.swift */; };
@@ -114,6 +115,7 @@
 		81361AA711F7175983107DB7 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		82A4AE1F1A81BA244996E161 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		9528BDD6DBEDAF935827B26E /* CategoryDrag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryDrag.swift; sourceTree = "<group>"; };
+		97DC9D8BA47E257BE4D53975 /* CameraFullScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraFullScreen.swift; sourceTree = "<group>"; };
 		9A709ACBF6C3491DFFE272E2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		9AB4A5794CD974E927BAE09F /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		B2B0673A2B0BE663C38C076C /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
@@ -195,6 +197,7 @@
 		644E78F932B629DFFCC2A993 /* Printing */ = {
 			isa = PBXGroup;
 			children = (
+				97DC9D8BA47E257BE4D53975 /* CameraFullScreen.swift */,
 				7ACBBD0E663BC1CA5B900A5A /* Platform.swift */,
 				4F953C3E4D809C9CFD874BFA /* PrepareView.swift */,
 				3DC23733C14833DB9B1DB005 /* PrinterSetupView.swift */,
@@ -458,6 +461,7 @@
 				DA9CFC35D50AC2603D3DA4CC /* AppState.swift in Sources */,
 				F20A3A72DE1E89553B7F3995 /* Appearance.swift in Sources */,
 				CE6FC820B1DC36B1A8DAF007 /* BulkSheet.swift in Sources */,
+				AD3754AE6ADADA95D85A16E1 /* CameraFullScreen.swift in Sources */,
 				289A5E30B43867F4E0CCE3AB /* CategoryDrag.swift in Sources */,
 				5AC98B1B6D62168463119193 /* CategoryPicker.swift in Sources */,
 				272903345439CBD8116306D5 /* Components.swift in Sources */,

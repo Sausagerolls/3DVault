@@ -17,6 +17,7 @@
 		493D779E48897C055A478D71 /* InboxWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE596EB27519E6AD2A533B78 /* InboxWatcher.swift */; };
 		4C3D216C494543FBD6356881 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0912C6F1675BCDBB6CA0FD46 /* LoginView.swift */; };
 		53BF783A9A36DB6DFBEA2712 /* ModelActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36F60882A239D30CF25E9807 /* ModelActions.swift */; };
+		540B6D8AE5CE4C6B40BEA5EC /* CameraFullScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 547062E04A92782CBF7EDA64 /* CameraFullScreen.swift */; };
 		55930F0196FA61611778BB27 /* Platform.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3A22722F7F992DAA1D4BC23 /* Platform.swift */; };
 		58CE5AD328A6BE146F666E4D /* PrintSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94A9D06383CC62E82A0CB9DF /* PrintSheet.swift */; };
 		68134DE100F1B7E9E0F88617 /* FileCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2BE1B7F71AD195AEEA502A5 /* FileCache.swift */; };
@@ -47,6 +48,7 @@
 		36F60882A239D30CF25E9807 /* ModelActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelActions.swift; sourceTree = "<group>"; };
 		4EF43832446B088F7AA6881A /* Slicers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Slicers.swift; sourceTree = "<group>"; };
 		517E0F04A3127AB9C44666D2 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		547062E04A92782CBF7EDA64 /* CameraFullScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraFullScreen.swift; sourceTree = "<group>"; };
 		5819E11BEB735253FD30E3E6 /* LibraryGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryGrid.swift; sourceTree = "<group>"; };
 		625C28C9E7D38698D65B3B33 /* 3DVault.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = 3DVault.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6D60CA267CD677F439FA6023 /* Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Appearance.swift; sourceTree = "<group>"; };
@@ -148,6 +150,7 @@
 		D6AB40D935AC16CD4D3EC144 /* Printing */ = {
 			isa = PBXGroup;
 			children = (
+				547062E04A92782CBF7EDA64 /* CameraFullScreen.swift */,
 				C3A22722F7F992DAA1D4BC23 /* Platform.swift */,
 				E6031F4635E4AAE950604810 /* PrepareView.swift */,
 				EBD03388C5A0507B724F9703 /* PrinterSetupView.swift */,
@@ -272,6 +275,7 @@
 			files = (
 				7331A90345FC89C32D4CC886 /* AppState.swift in Sources */,
 				8F573D69D216470DC1C899C6 /* Appearance.swift in Sources */,
+				540B6D8AE5CE4C6B40BEA5EC /* CameraFullScreen.swift in Sources */,
 				7C09183B301BF0F3436539B1 /* CategoryDrag.swift in Sources */,
 				F6D28F800C73A40BB3422247 /* CategoryPicker.swift in Sources */,
 				76398EA5EFF997F498E1D028 /* DetailPane.swift in Sources */,

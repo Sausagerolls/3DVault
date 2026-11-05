@@ -239,7 +239,7 @@ private struct LabeledField: View {
 }
 
 /// Add a printer or change one. Fields come from the server, as they vary by type of printer.
-private struct MachineEditor: View {
+struct MachineEditor: View {
     @Environment(AppState.self) private var state
     @Environment(\.dismiss) private var dismiss
     @State var draft: MachineDraft
