@@ -14,6 +14,7 @@
 		272903345439CBD8116306D5 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = C88B06D115765B340A0BE9FA /* Components.swift */; };
 		289A5E30B43867F4E0CCE3AB /* CategoryDrag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9528BDD6DBEDAF935827B26E /* CategoryDrag.swift */; };
 		2D89EB7F544A0FC1E027051D /* Organise.swift in Sources */ = {isa = PBXBuildFile; fileRef = E02E69B5D265777754B6C1BA /* Organise.swift */; };
+		32CD783C38DB3A19D3CE1D9E /* PrinterSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DC23733C14833DB9B1DB005 /* PrinterSetupView.swift */; };
 		44177DE9689AF9419966B7A5 /* VaultApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E91D361DFB7ECE7B1ACC2FB1 /* VaultApp.swift */; };
 		47A1F1BB10EAFDFCDB1A7039 /* Platform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ACBBD0E663BC1CA5B900A5A /* Platform.swift */; };
 		481DC61923DC8A1408FFC44B /* 3DVaultWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 518593DD28B53862031DF66C /* 3DVaultWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -94,6 +95,7 @@
 		2C9B7AD712936FF78CBDE749 /* PinStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinStore.swift; sourceTree = "<group>"; };
 		311C26001D01B9138E844719 /* Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Appearance.swift; sourceTree = "<group>"; };
 		3390F7B3C86EC8802FFD7DE0 /* FileCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileCache.swift; sourceTree = "<group>"; };
+		3DC23733C14833DB9B1DB005 /* PrinterSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrinterSetupView.swift; sourceTree = "<group>"; };
 		4B7FE1A92193E9ABCB07E51E /* PrintTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintTracker.swift; sourceTree = "<group>"; };
 		4F953C3E4D809C9CFD874BFA /* PrepareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrepareView.swift; sourceTree = "<group>"; };
 		50D7A0E503827618FB0DE788 /* UploadSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadSheet.swift; sourceTree = "<group>"; };
@@ -195,6 +197,7 @@
 			children = (
 				7ACBBD0E663BC1CA5B900A5A /* Platform.swift */,
 				4F953C3E4D809C9CFD874BFA /* PrepareView.swift */,
+				3DC23733C14833DB9B1DB005 /* PrinterSetupView.swift */,
 				771212231350788C54CFEE11 /* PrintersView.swift */,
 				D27DC233491A8EA6FC549F50 /* PrintSheet.swift */,
 			);
@@ -472,6 +475,7 @@
 				D7D88292C4D5145C273F4E6F /* PrintAlarms.swift in Sources */,
 				1009A3669EF7F275701431DB /* PrintSheet.swift in Sources */,
 				AFB09C0CF71A32C216D20C7A /* PrintTracker.swift in Sources */,
+				32CD783C38DB3A19D3CE1D9E /* PrinterSetupView.swift in Sources */,
 				7AA1F16FEE06373F7167728B /* PrintersView.swift in Sources */,
 				5018F1568C3720856CF76360 /* SettingsView.swift in Sources */,
 				DA2AC8384F16486CB141598F /* SharedConfig.swift in Sources */,

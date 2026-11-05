@@ -36,6 +36,21 @@ extension Color {
 @MainActor func successHaptic() {}
 #endif
 
+extension Color {
+    /// "#RRGGBB", as printers and slicers write colours.
+    var hexString: String {
+        #if os(iOS)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        UIColor(self).getRed(&r, green: &g, blue: &b, alpha: &a)
+        #else
+        let c = NSColor(self).usingColorSpace(.sRGB) ?? .gray
+        let (r, g, b) = (c.redComponent, c.greenComponent, c.blueComponent)
+        #endif
+        let byte = { (v: CGFloat) in Int((min(max(v, 0), 1) * 255).rounded()) }
+        return String(format: "#%02X%02X%02X", byte(r), byte(g), byte(b))
+    }
+}
+
 extension View {
     /// Inline navigation titles on iOS; macOS has no equivalent.
     func inlineTitle() -> some View {

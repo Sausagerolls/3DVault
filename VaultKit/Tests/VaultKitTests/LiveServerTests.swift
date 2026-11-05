@@ -19,6 +19,43 @@ final class LiveServerTests: XCTestCase {
         await client?.logout()
     }
 
+    func testPrinterSetup() async throws {
+        let kinds = try await client.machineKinds()
+        XCTAssertTrue(kinds.contains { $0.kind == "bambu" && $0.fields.contains { $0.secret } })
+        let printers = try await client.slicerPrinters(query: "A1 mini")
+        XCTAssertTrue(printers.contains { $0.name.contains("A1 mini") })
+
+        var draft = MachineDraft(kind: "simulated")
+        draft.name = "Setup test \(UUID().uuidString.prefix(8))"
+        draft.slicerPrinter = "Bambu Lab A1 mini 0.4 nozzle"
+        draft.secret = "first"
+        let filament = try await client.slicerFilaments(printer: draft.slicerPrinter)[0].name
+        draft.installedFilament = filament
+        draft.installedColour = "#112233"
+        let created = try await client.saveMachine(draft)
+        var saved = created
+        do {
+            XCTAssertEqual(created.installedFilament, filament)
+            XCTAssertEqual(created.installedColour, "#112233")
+            XCTAssertEqual(created.hasSecret, true)
+
+            // An empty secret keeps the stored one.
+            var edit = MachineDraft(machine: created)
+            XCTAssertEqual(edit.secret, "")
+            edit.enabled = false
+            edit.installedColour = ""
+            saved = try await client.saveMachine(edit)
+            XCTAssertEqual(saved.hasSecret, true)
+            XCTAssertFalse(saved.enabled)
+            XCTAssertEqual(saved.installedColour, "")
+            let options = try await client.slicerOptions(machineId: saved.id)
+            XCTAssertEqual(options.defaultFilament, filament)
+        }
+        try await client.deleteMachine(saved.id)
+        let left = try await client.machines()
+        XCTAssertFalse(left.contains { $0.id == saved.id })
+    }
+
     func testBrowseAndPreview() async throws {
         let me = try await client.me()
         XCTAssertFalse(me.username.isEmpty)

@@ -25,6 +25,15 @@ struct SettingsView: View {
                         }
                     }
                 }
+                if state.user?.isAdmin == true, !state.offline {
+                    Section {
+                        NavigationLink {
+                            PrinterSetupView()
+                        } label: {
+                            Label("Manage Printers", systemImage: "printer")
+                        }
+                    }
+                }
                 Section("Appearance") {
                     Picker("Appearance", selection: $appearance) {
                         ForEach(Appearance.allCases) { Text($0.label).tag($0) }

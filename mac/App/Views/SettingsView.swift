@@ -8,6 +8,7 @@ struct SettingsView: View {
     @State private var inboxFolder = InboxWatcher.folder
     @State private var cacheSize = 0
     @AppStorage(Appearance.key) private var appearance = Appearance.system
+    @State private var showPrinters = false
 
     var body: some View {
         Form {
@@ -21,6 +22,12 @@ struct SettingsView: View {
                     Button("Sign Out") { Task { await state.signOut() } }
                 } else {
                     Text("Not signed in").foregroundStyle(.secondary)
+                }
+            }
+
+            if state.user?.isAdmin == true, !state.offline {
+                Section("Printers") {
+                    Button("Manage Printers…") { showPrinters = true }
                 }
             }
 
@@ -80,6 +87,15 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .frame(width: 520, height: 600)
+        .sheet(isPresented: $showPrinters) {
+            NavigationStack {
+                PrinterSetupView()
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) { Button("Done") { showPrinters = false } }
+                    }
+            }
+            .frame(width: 520, height: 560)
+        }
         .onAppear { cacheSize = state.files.size }
     }
 }

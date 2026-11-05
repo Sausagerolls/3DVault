@@ -44,6 +44,13 @@ public struct Machine: Codable, Hashable, Identifiable, Sendable {
     public let kind: String
     public let bed: BedSize?
     public let slicerPrinter: String?
+    /// Older servers leave out the settings below, which only the printer setup needs.
+    public let host: String?
+    public let serial: String?
+    public let hasSecret: Bool?
+    public let printerId: Int?
+    public let installedFilament: String?
+    public let installedColour: String?
     public let enabled: Bool
     public let needsClear: Bool
     public let hasCamera: Bool
@@ -51,6 +58,92 @@ public struct Machine: Codable, Hashable, Identifiable, Sendable {
     public let status: PrinterStatus
     public let activeJob: PrintJob?
     public let queued: Int
+}
+
+/// A type of printer 3DVault can connect to, and the fields it needs to do so.
+public struct MachineKind: Codable, Hashable, Identifiable, Sendable {
+    public struct Field: Codable, Hashable, Identifiable, Sendable {
+        public let key: String
+        public let label: String
+        public let secret: Bool
+        public var id: String { key }
+    }
+
+    public let kind: String
+    public let label: String
+    public let fields: [Field]
+    public var id: String { kind }
+}
+
+/// A printer that answered on the server's network.
+public struct DiscoveredPrinter: Codable, Hashable, Identifiable, Sendable {
+    public let kind: String
+    public let serial: String
+    public let host: String
+    public let name: String
+    public let model: String?
+    public let lanMode: Bool
+    public let added: Bool
+    public var id: String { serial }
+}
+
+public struct SlicerPrinterProfile: Codable, Hashable, Identifiable, Sendable {
+    public let name: String
+    public let vendor: String
+    public let user: Bool
+    public var id: String { vendor + name }
+}
+
+/// The editable settings of a printer, new or existing.
+public struct MachineDraft: Hashable, Identifiable, Sendable {
+    public var id: Int?
+    public var name = ""
+    public var kind = ""
+    public var host = ""
+    public var serial = ""
+    /// Left empty on an existing printer, the server keeps the one it has.
+    public var secret = ""
+    public var hasSecret = false
+    public var printerId: Int?
+    public var enabled = true
+    public var slicerPrinter = ""
+    public var installedFilament = ""
+    public var installedColour = ""
+
+    public init(kind: String) {
+        self.kind = kind
+    }
+
+    public init(discovered p: DiscoveredPrinter) {
+        name = p.name
+        kind = p.kind
+        host = p.host
+        serial = p.serial
+    }
+
+    public init(machine m: Machine) {
+        id = m.id
+        name = m.name
+        kind = m.kind
+        host = m.host ?? ""
+        serial = m.serial ?? ""
+        hasSecret = m.hasSecret ?? false
+        printerId = m.printerId
+        enabled = m.enabled
+        slicerPrinter = m.slicerPrinter ?? ""
+        installedFilament = m.installedFilament ?? ""
+        installedColour = m.installedColour ?? ""
+    }
+
+    var json: [String: JSONValue] {
+        [
+            "name": .string(name), "kind": .string(kind), "host": .string(host), "serial": .string(serial),
+            "secret": id != nil && secret.isEmpty ? .null : .string(secret),
+            "printer_id": printerId.map { .number(Double($0)) } ?? .null,
+            "enabled": .bool(enabled), "slicer_printer": .string(slicerPrinter),
+            "installed_filament": .string(installedFilament), "installed_colour": .string(installedColour),
+        ]
+    }
 }
 
 public struct PrintJob: Codable, Hashable, Identifiable, Sendable {
@@ -194,6 +287,53 @@ public func formatFinishTime(_ end: Date, from now: Date = .now, calendar: Calen
 extension APIClient {
     public func machines() async throws -> [Machine] { try await get("machines") }
     public func machine(_ id: Int) async throws -> Machine { try await get("machines/\(id)") }
+
+    // Printer setup. Everything that changes something is for admins, and the server checks.
+    public func machineKinds() async throws -> [MachineKind] { try await get("machine-kinds") }
+
+    /// The server listens for printers announcing themselves, which takes a few seconds.
+    public func discoverMachines() async throws -> [DiscoveredPrinter] {
+        try await decode(send("machines/discover", method: "POST"))
+    }
+
+    @discardableResult
+    public func saveMachine(_ draft: MachineDraft) async throws -> Machine {
+        if let id = draft.id {
+            return try await decode(send("machines/\(id)", method: "PATCH", json: draft.json))
+        }
+        return try await decode(send("machines", method: "POST", json: draft.json))
+    }
+
+    public func deleteMachine(_ id: Int) async throws { _ = try await send("machines/\(id)", method: "DELETE") }
+
+    public func slicerAvailable() async throws -> Bool {
+        struct Out: Decodable { let available: Bool }
+        let out: Out = try await get("slicer")
+        return out.available
+    }
+
+    public func slicerPrinters(query: String) async throws -> [SlicerPrinterProfile] {
+        try await get("slicer/printers", query: [.init(name: "q", value: query), .init(name: "limit", value: "30")])
+    }
+
+    public func slicerFilaments(printer: String) async throws -> [SlicerProfile] {
+        try await get("slicer/filaments", query: [.init(name: "printer", value: printer)])
+    }
+
+    /// Returns the names of the presets imported.
+    public func importSlicerPresets(_ files: [URL]) async throws -> [String] {
+        struct Out: Decodable { let imported: [String] }
+        let body = try MultipartBody(files: files.map { ("files", $0) }, fields: [])
+        let out: Out = try decode(await upload("slicer/import", body: body))
+        return out.imported
+    }
+
+    /// A long-lived token, such as a slicer's API key. The server only shows it this once.
+    public func createToken(name: String) async throws -> String {
+        struct Out: Decodable { let token: String }
+        let out: Out = try decode(await send("tokens", method: "POST", query: [.init(name: "name", value: name)]))
+        return out.token
+    }
 
     public func printInfo(fileId: Int) async throws -> PrintInfo { try await get("files/\(fileId)/print-info") }
 

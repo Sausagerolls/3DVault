@@ -116,10 +116,14 @@ struct MainView: View {
             // Testing: VAULT_TEST_MODEL=<id> opens that model once the library has loaded, and
             // VAULT_TEST_SNAPSHOT=<seconds> then lists the window numbers in the app's temporary
             // folder for screencapture, and quits a little later.
+            // VAULT_TEST_SECTION=printers opens the Printers screen instead of a model.
             let env = ProcessInfo.processInfo.environment
-            guard let id = env["VAULT_TEST_MODEL"].flatMap(Int.init) else { return }
             try? await Task.sleep(for: .seconds(2))
-            selection = [id]
+            if env["VAULT_TEST_SECTION"] == "printers" {
+                section = .printers
+            } else if let id = env["VAULT_TEST_MODEL"].flatMap(Int.init) {
+                selection = [id]
+            }
             guard let wait = env["VAULT_TEST_SNAPSHOT"].flatMap(Double.init) else { return }
             try? await Task.sleep(for: .seconds(wait))
             let numbers = NSApp.windows.filter(\.isVisible).map { String($0.windowNumber) }.joined(separator: " ")

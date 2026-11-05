@@ -8,6 +8,9 @@ struct PrintersView: View {
     @State private var machines: [Machine] = []
     @State private var loaded = false
     @State private var error: String?
+    @State private var showSetup = false
+
+    private var isAdmin: Bool { state.user?.isAdmin == true }
 
     var body: some View {
         ScrollView {
@@ -22,13 +25,48 @@ struct PrintersView: View {
         }
         .overlay {
             if loaded && machines.isEmpty {
-                ContentUnavailableView("No Printers", systemImage: "printer",
-                                       description: Text(error ?? "An admin can add printers in the web app under Settings › Printers."))
+                ContentUnavailableView {
+                    Label("No Printers", systemImage: "printer")
+                } description: {
+                    Text(error ?? (isAdmin ? "Pair a printer to send prints to it." : "An admin can add printers."))
+                } actions: {
+                    if isAdmin {
+                        Button("Add Printer") { showSetup = true }.buttonStyle(.borderedProminent)
+                    }
+                }
             } else if !loaded {
                 ProgressView()
             }
         }
         .navigationTitle("Printers")
+        .toolbar {
+            if isAdmin {
+                ToolbarItem(placement: .primaryAction) {
+                    Button { showSetup = true } label: { Label("Manage Printers", systemImage: "slider.horizontal.3") }
+                        .help("Pair printers and change their settings")
+                }
+            }
+        }
+        .sheet(isPresented: $showSetup, onDismiss: { Task { await refresh() } }) {
+            NavigationStack {
+                PrinterSetupView()
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) { Button("Done") { showSetup = false } }
+                    }
+            }
+            #if os(macOS)
+            .frame(minWidth: 520, idealWidth: 580, minHeight: 460, idealHeight: 640, maxHeight: 700)
+            #endif
+        }
+        #if DEBUG
+        .task {
+            // Testing: VAULT_TEST_SETUP=1 opens printer setup.
+            if ProcessInfo.processInfo.environment["VAULT_TEST_SETUP"] != nil {
+                try? await Task.sleep(for: .seconds(1))
+                showSetup = true
+            }
+        }
+        #endif
         .refreshable { await refresh() }
         .task {
             // Poll while visible; the server keeps the live connections.
