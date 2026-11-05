@@ -1,33 +1,13 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { api, type Machine, type ModelDetail, type PrintInfo, type SliceTask, type SlicerOptions } from "../api";
+import { api, type Machine, type ModelDetail, type PrintInfo, type ProcessOption, type ProcessSchema, type SliceTask, type SlicerOptions } from "../api";
 import { LayerPreview, duration, printableFiles } from "../components/Printing";
 import { useToast } from "../components/ui";
 import { PlateEditor, type Tool, type Transform } from "../viewer/PlateEditor";
 
-/** Settings for one slice. Starts from the chosen process profile. */
-type Settings = {
-  process: string;
-  filament: string;
-  bed: string;
-  layer_height: number;
-  infill: number;
-  pattern: string;
-  walls: number;
-  top: number;
-  bottom: number;
-  supports: "off" | "auto" | "painted";
-  style: "normal" | "tree";
-  threshold: number;
-  buildPlateOnly: boolean;
-  brim: string;
-};
-
-const PATTERNS: [string, string][] = [
-  ["grid", "Grid"], ["gyroid", "Gyroid"], ["cubic", "Cubic"], ["honeycomb", "Honeycomb"], ["triangles", "Triangles"],
-  ["crosshatch", "Cross hatch"], ["line", "Line"], ["adaptivecubic", "Adaptive cubic"], ["lightning", "Lightning"], ["concentric", "Concentric"],
-];
+/** What's chosen for one slice, apart from the process settings. */
+type Settings = { process: string; filament: string; bed: string };
 
 const TOOLS: { id: Tool; label: string; title: string }[] = [
   { id: "select", label: "Select", title: "Choose a part and turn the view" },
@@ -70,6 +50,11 @@ export default function PreparePage() {
   const [tool, setTool] = useState<Tool>("select");
   const [brush, setBrush] = useState(4);
   const [overhangs, setOverhangs] = useState(false);
+  // Settings changed from the process preset. Only these are sent, on top of the preset.
+  const [changes, setChanges] = useState<Record<string, string>>({});
+  const valueRef = useRef<(key: string) => string>(() => "");
+  const [search, setSearch] = useState("");
+  const [advanced, setAdvanced] = useState(() => localStorage.getItem("prepare.advanced") !== "0");
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(0);
   const [task, setTask] = useState<SliceTask | null>(null);
@@ -90,7 +75,7 @@ export default function PreparePage() {
     e.onChange = () => redraw((n) => n + 1);
     // Painting only counts if supports are on, so turn them on at the first stroke.
     e.onPaint = (kind) => {
-      if (kind !== "erase") setSettings((s) => (s && s.supports === "off" ? { ...s, supports: "painted" } : s));
+      if (kind !== "erase") setChanges((c) => ({ ...c, ...supportsForPainting(valueRef.current) }));
     };
     editorRef.current = e;
     redraw((n) => n + 1);
@@ -134,33 +119,36 @@ export default function PreparePage() {
   useEffect(() => {
     const o = options.data;
     if (!o) return;
-    const d = o.defaults;
-    const auto = (d.support_type || "").includes("auto");
     if (o.volume && editorRef.current) editorRef.current.setVolume(o.volume);
     setSettings((old) => ({
       process: old?.process && o.processes.some((p) => p.name === old.process) ? old.process : o.default_process || o.processes[0]?.name || "",
       filament: old?.filament && o.filaments.some((f) => f.name === old.filament) ? old.filament : o.default_filament || o.filaments[0]?.name || "",
       bed: o.default_bed_type || o.bed_types[0] || "",
-      layer_height: d.layer_height ?? 0.2,
-      infill: d.sparse_infill_density ?? 15,
-      pattern: d.sparse_infill_pattern ?? "grid",
-      walls: d.wall_loops ?? 2,
-      top: d.top_shell_layers ?? 4,
-      bottom: d.bottom_shell_layers ?? 3,
-      supports: old?.supports ?? (d.enable_support ? (auto ? "auto" : "painted") : "off"),
-      style: old?.style ?? ((d.support_type || "").startsWith("tree") ? "tree" : "normal"),
-      threshold: d.support_threshold_angle ?? 30,
-      buildPlateOnly: d.support_on_build_plate_only ?? false,
-      brim: d.brim_type || "auto_brim",
     }));
   }, [options.data]);
+
+  const schema = useQuery({ queryKey: ["process-schema"], queryFn: () => api<ProcessSchema>("/slicer/process-schema"), staleTime: Infinity, retry: false });
+  const preset = useQuery({
+    queryKey: ["process-values", settings?.process],
+    queryFn: () => api<Record<string, string>>(`/slicer/process-values?name=${encodeURIComponent(settings!.process)}`),
+    enabled: !!settings?.process,
+  });
+  const value = (key: string): string => changes[key] ?? preset.data?.[key] ?? "";
+  valueRef.current = value;
+  const setValue = (key: string, v: string) =>
+    setChanges((c) => {
+      const next = { ...c };
+      if (v === preset.data?.[key]) delete next[key];
+      else next[key] = v;
+      return next;
+    });
 
   useEffect(() => {
     if (editor) editor.brushMm = brush;
   }, [brush, editor]);
   useEffect(() => {
-    if (editor && settings) editor.setOverhangs(overhangs, settings.threshold || 30);
-  }, [overhangs, settings?.threshold, editor]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (editor) editor.setOverhangs(overhangs, Number(value("support_threshold_angle")) || 30);
+  }, [overhangs, value("support_threshold_angle"), editor]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = (patch: Partial<Settings>) => setSettings((s) => (s ? { ...s, ...patch } : s));
   const pick = (t: Tool) => {
@@ -177,8 +165,8 @@ export default function PreparePage() {
   const slice = async () => {
     if (!editor || !settings || machineId == null) return;
     const layout = editor.layout();
-    // Painted supports need supports switched on, even if the user turned them off afterwards.
-    const mode = settings.supports === "off" && editor.painted ? "painted" : settings.supports;
+    // Painted supports need supports switched on, even if they were turned off afterwards.
+    const processValues = { ...changes, ...(editor.painted ? supportsForPainting(value) : {}) };
     try {
       let t = await api<SliceTask>("/slices", {
         method: "POST",
@@ -188,18 +176,8 @@ export default function PreparePage() {
           process: settings.process,
           filaments: [settings.filament],
           overrides: {
-            layer_height: settings.layer_height,
-            sparse_infill_density: settings.infill,
-            sparse_infill_pattern: settings.pattern,
-            wall_loops: settings.walls,
-            top_shell_layers: settings.top,
-            bottom_shell_layers: settings.bottom,
-            enable_support: mode !== "off",
-            support_type: `${settings.style}(${mode === "painted" ? "manual" : "auto"})`,
-            support_threshold_angle: settings.threshold,
-            support_on_build_plate_only: settings.buildPlateOnly,
-            brim_type: settings.brim,
             bed_type: settings.bed,
+            process_values: processValues,
             layout,
           },
         },
@@ -302,7 +280,7 @@ export default function PreparePage() {
                 )}
               </Group>
 
-              <Group id="printer" title="Printer" summary={[machine?.name, settings?.filament.split(" @")[0]].filter(Boolean).join(" · ")}>
+              <Group id="printer" title="Printer" summary={[machine?.name, settings?.process.split(" @")[0]].filter(Boolean).join(" · ")}>
                 <label className="field">Printer
                   <select value={machineId ?? ""} disabled={busy} onChange={(e) => setMachineId(Number(e.target.value))}>
                     {machines.data?.filter((x) => x.enabled).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
@@ -310,6 +288,18 @@ export default function PreparePage() {
                 </label>
                 {settings && options.data && (
                   <>
+                    <label className="field">Process preset
+                      <select
+                        value={settings.process}
+                        onChange={(e) => {
+                          if (Object.keys(changes).length) toast("Changed settings went back to the new preset's values");
+                          setChanges({});
+                          set({ process: e.target.value });
+                        }}
+                      >
+                        {options.data.processes.map((p) => <option key={p.name} value={p.name}>{p.name.split(" @")[0]}</option>)}
+                      </select>
+                    </label>
                     <label className="field">Filament
                       <select value={settings.filament} onChange={(e) => set({ filament: e.target.value })}>
                         {options.data.filaments.map((f) => <option key={f.name} value={f.name}>{f.name.split(" @")[0]}{f.user ? " (imported)" : ""}</option>)}
@@ -324,71 +314,38 @@ export default function PreparePage() {
                 )}
               </Group>
 
-              {settings && options.data && (
-                <>
-                  <Group id="quality" title="Quality" summary={settings.process.split(" @")[0]}>
-                    <label className="field">Preset
-                      <select value={settings.process} onChange={(e) => set({ process: e.target.value })}>
-                        {options.data.processes.map((p) => <option key={p.name} value={p.name}>{p.name.split(" @")[0]}</option>)}
-                      </select>
-                    </label>
-                    <Num label="Layer height (mm)" value={settings.layer_height} min={0.04} max={0.6} step={0.04} onChange={(layer_height) => set({ layer_height })} />
-                  </Group>
-
-                  <Group id="strength" title="Strength" summary={`${settings.walls} walls · ${settings.infill}% ${PATTERNS.find((p) => p[0] === settings.pattern)?.[1] ?? settings.pattern}`}>
-                    <div className="prepare-grid">
-                      <Num label="Walls" value={settings.walls} min={1} max={20} onChange={(walls) => set({ walls })} />
-                      <Num label="Top layers" value={settings.top} min={0} max={50} onChange={(top) => set({ top })} />
-                      <Num label="Bottom layers" value={settings.bottom} min={0} max={50} onChange={(bottom) => set({ bottom })} />
-                      <Num label="Infill (%)" value={settings.infill} min={0} max={100} step={5} onChange={(infill) => set({ infill })} />
-                    </div>
-                    <label className="field">Infill pattern
-                      <select value={settings.pattern} onChange={(e) => set({ pattern: e.target.value })}>
-                        {!PATTERNS.some((p) => p[0] === settings.pattern) && <option value={settings.pattern}>{settings.pattern}</option>}
-                        {PATTERNS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
-                      </select>
-                    </label>
-                  </Group>
-
-                  <Group id="support" title="Support" summary={{ off: "Off", auto: `Automatic · ${settings.style}`, painted: `Painted · ${settings.style}` }[settings.supports]} defaultOpen>
-                    <label className="field">Supports
-                      <select value={settings.supports} onChange={(e) => set({ supports: e.target.value as Settings["supports"] })}>
-                        <option value="off">Off</option>
-                        <option value="auto">Automatic, plus painting</option>
-                        <option value="painted">Only where painted</option>
-                      </select>
-                    </label>
-                    {settings.supports !== "off" && (
-                      <>
-                        <label className="field">Style
-                          <select value={settings.style} onChange={(e) => set({ style: e.target.value as Settings["style"] })}>
-                            <option value="normal">Normal</option>
-                            <option value="tree">Tree</option>
-                          </select>
-                        </label>
-                        <Num label="Overhang angle (°)" value={settings.threshold} min={0} max={90} step={5} onChange={(threshold) => set({ threshold })} />
-                        <label className="row" style={{ gap: 6 }}>
-                          <input type="checkbox" checked={settings.buildPlateOnly} onChange={(e) => set({ buildPlateOnly: e.target.checked })} /> Only from the build plate
-                        </label>
-                      </>
-                    )}
-                    <label className="row" style={{ gap: 6 }}>
-                      <input type="checkbox" checked={overhangs} onChange={(e) => setOverhangs(e.target.checked)} /> Highlight overhangs
-                    </label>
-                    {settings.supports === "painted" && !editor?.painted && <p className="dim" style={{ margin: 0, fontSize: 12 }}>Nothing is painted yet, so this slice would have no supports.</p>}
-                  </Group>
-
-                  <Group id="others" title="Others" summary={{ auto_brim: "Brim: automatic", outer_only: "Brim: outer only", no_brim: "No brim" }[settings.brim] ?? settings.brim}>
-                    <label className="field">Brim
-                      <select value={settings.brim} onChange={(e) => set({ brim: e.target.value })}>
-                        {!["auto_brim", "outer_only", "no_brim"].includes(settings.brim) && <option value={settings.brim}>{settings.brim}</option>}
-                        <option value="auto_brim">Automatic</option>
-                        <option value="outer_only">Outer only</option>
-                        <option value="no_brim">No brim</option>
-                      </select>
-                    </label>
-                  </Group>
-                </>
+              <div className="prepare-search">
+                <input type="search" placeholder="Search settings" value={search} onChange={(e) => setSearch(e.target.value)} />
+                <label className="row" style={{ gap: 6, flex: "none" }} title="Shows every setting. Off shows only the simple ones, like Orca's Simple mode.">
+                  <input
+                    type="checkbox"
+                    checked={advanced}
+                    onChange={(e) => {
+                      setAdvanced(e.target.checked);
+                      localStorage.setItem("prepare.advanced", e.target.checked ? "1" : "0");
+                    }}
+                  />
+                  Advanced
+                </label>
+              </div>
+              {schema.error && <p style={{ margin: 0, color: "#d9822b" }}>{(schema.error as Error).message}</p>}
+              {schema.data && preset.data && (
+                <ProcessSettings
+                  schema={schema.data}
+                  value={value}
+                  preset={preset.data}
+                  changes={changes}
+                  onChange={setValue}
+                  search={search}
+                  advanced={advanced}
+                  extra={{
+                    Support: (
+                      <label className="row" style={{ gap: 6 }}>
+                        <input type="checkbox" checked={overhangs} onChange={(e) => setOverhangs(e.target.checked)} /> Highlight overhangs
+                      </label>
+                    ),
+                  }}
+                />
               )}
 
               <footer className="prepare-actions">
@@ -398,7 +355,11 @@ export default function PreparePage() {
                   </p>
                 )}
                 {!task && blockReason && <p className="dim" style={{ margin: 0, fontSize: 12 }}>{blockReason}</p>}
-                {machine && settings && !blockReason && <p className="faint" style={{ margin: 0, fontSize: 12 }}>Sliced on the server for {machine.name}.</p>}
+                {machine && settings && !blockReason && (
+                  <p className="faint" style={{ margin: 0, fontSize: 12 }}>
+                    Sliced on the server for {machine.name}{Object.keys(changes).length ? `, with ${Object.keys(changes).length} changed ${Object.keys(changes).length === 1 ? "setting" : "settings"}` : ""}.
+                  </p>
+                )}
                 <button className="primary" disabled={!!blockReason || !settings || busy} onClick={slice}>Slice plate</button>
               </footer>
             </>
@@ -407,6 +368,107 @@ export default function PreparePage() {
       </div>
     </div>
   );
+}
+
+/** What painting needs: supports on, and if they were off, only where painted. */
+function supportsForPainting(value: (key: string) => string): Record<string, string> {
+  if (value("enable_support") === "1") return {};
+  const type = value("support_type") || "normal(auto)";
+  return { enable_support: "1", support_type: type.replace("(auto)", "(manual)") };
+}
+
+/** Orca's process settings, page by page, built from the server's list of them. */
+function ProcessSettings({ schema, value, preset, changes, onChange, search, advanced, extra }: {
+  schema: ProcessSchema;
+  value: (key: string) => string;
+  preset: Record<string, string>;
+  changes: Record<string, string>;
+  onChange: (key: string, v: string) => void;
+  search: string;
+  advanced: boolean;
+  extra: Record<string, ReactNode>;
+}) {
+  const words = search.toLowerCase().split(/\s+/).filter(Boolean);
+  const visible = (o: ProcessOption) => {
+    if (!advanced && o.mode !== "simple") return false;
+    const text = `${o.full_label ?? ""} ${o.label ?? ""} ${o.key} ${o.tooltip ?? ""}`.toLowerCase();
+    return words.every((w) => text.includes(w));
+  };
+  return (
+    <>
+      {schema.pages.map((page) => {
+        const groups = page.groups
+          .map((g) => ({ title: g.title, options: g.options.map((k) => schema.options[k]).filter((o) => o && visible(o)) }))
+          .filter((g) => g.options.length);
+        if (!groups.length) return null;
+        const changed = page.groups.flatMap((g) => g.options).filter((k) => k in changes).length;
+        return (
+          <Group key={page.title} id={page.title.toLowerCase()} title={page.title} summary={changed ? `${changed} changed` : undefined} forceOpen={words.length > 0}>
+            {!words.length && extra[page.title]}
+            {groups.map((g) => (
+              <div key={g.title} className="col" style={{ gap: 6 }}>
+                <div className="prepare-subhead">{g.title}</div>
+                {g.options.map((o) => (
+                  <SettingRow key={o.key} option={o} value={value(o.key)} changed={o.key in changes} onChange={(v) => onChange(o.key, v)} onReset={() => onChange(o.key, preset[o.key] ?? "")} />
+                ))}
+              </div>
+            ))}
+          </Group>
+        );
+      })}
+    </>
+  );
+}
+
+function SettingRow({ option: o, value, changed, onChange, onReset }: { option: ProcessOption; value: string; changed: boolean; onChange: (v: string) => void; onReset: () => void }) {
+  const [help, setHelp] = useState(false);
+  const label = o.full_label || o.label || o.key;
+  const out = (o.type === "int" || o.type === "float" || o.type === "percent" || o.type === "float_or_percent") && value !== "" && !isValid(o, value);
+  let control: ReactNode;
+  if (o.type === "bool") {
+    control = <input type="checkbox" checked={value === "1"} onChange={(e) => onChange(e.target.checked ? "1" : "0")} />;
+  } else if (o.type === "enum" && o.choices?.length) {
+    control = (
+      <select value={value} onChange={(e) => onChange(e.target.value)}>
+        {!o.choices.some((c) => c.value === value) && <option value={value}>{value}</option>}
+        {o.choices.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+      </select>
+    );
+  } else if (o.multiline) {
+    control = <textarea rows={3} value={value} onChange={(e) => onChange(e.target.value)} />;
+  } else {
+    const percent = o.type === "percent";
+    control = (
+      <span className="prepare-input">
+        <input
+          type="text"
+          inputMode={o.type === "string" ? "text" : "decimal"}
+          className={out ? "invalid" : ""}
+          value={percent ? value.replace(/%$/, "") : value}
+          onChange={(e) => onChange(percent ? `${e.target.value}%` : e.target.value)}
+        />
+        {(percent || o.unit) && <span className="faint">{percent ? "%" : o.unit}</span>}
+      </span>
+    );
+  }
+  return (
+    <div className={`prepare-setting ${o.multiline ? "wide" : ""}`}>
+      <button className={`prepare-setting-label ${changed ? "changed" : ""}`} title={o.tooltip} onClick={() => setHelp(!help)}>{label}</button>
+      <div className="prepare-setting-control">
+        {control}
+        <button className="prepare-reset" style={{ visibility: changed ? "visible" : "hidden" }} title="Back to the preset's value" aria-label={`Reset ${label}`} onClick={onReset}>↺</button>
+      </div>
+      {help && o.tooltip && <p className="prepare-help">{o.tooltip}</p>}
+    </div>
+  );
+}
+
+function isValid(o: ProcessOption, v: string): boolean {
+  const n = Number(v.replace(/%$/, ""));
+  if (v.trim() === "" || !Number.isFinite(n)) return false;
+  if (o.type === "int" && !Number.isInteger(n)) return false;
+  if (o.type !== "percent" && o.type !== "float_or_percent" && v.endsWith("%")) return false;
+  return !(o.min != null && n < o.min) && !(o.max != null && n > o.max);
 }
 
 /** Which groups are open is remembered on this device. */
@@ -420,11 +482,12 @@ const savedGroups = (): Record<string, boolean> => {
 };
 
 /** A collapsible group of settings. Its summary says what's chosen while it's closed. */
-function Group({ id, title, summary, defaultOpen, children }: { id: string; title: string; summary?: string; defaultOpen?: boolean; children: ReactNode }) {
-  const [open, setOpen] = useState(savedGroups()[id] ?? !!defaultOpen);
+function Group({ id, title, summary, defaultOpen, forceOpen, children }: { id: string; title: string; summary?: string; defaultOpen?: boolean; forceOpen?: boolean; children: ReactNode }) {
+  const [saved, setOpen] = useState(savedGroups()[id] ?? !!defaultOpen);
+  const open = saved || !!forceOpen;
   const toggle = () => {
-    setOpen(!open);
-    const value = JSON.stringify({ ...savedGroups(), [id]: !open });
+    setOpen(!saved);
+    const value = JSON.stringify({ ...savedGroups(), [id]: !saved });
     localStorage.setItem(OPEN_KEY, value);
     // The apps' web views forget their storage, so the app keeps this and hands it back next time.
     native()?.postMessage({ type: "groups", value });

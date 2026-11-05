@@ -1,5 +1,6 @@
 # Build args used in FROM lines must be declared before the first stage.
 ARG WITH_SLICER=true
+ARG ORCA_VERSION=2.4.2
 
 # ---- web build
 FROM node:22-alpine AS web
@@ -12,7 +13,7 @@ RUN npx vite build
 # ---- OrcaSlicer for server-side slicing (x86_64 only). The AppImage's squashfs starts right after
 # its ELF runtime (section header offset + size), so it is unpacked directly and runs without FUSE.
 FROM debian:trixie-slim AS orca
-ARG ORCA_VERSION=2.4.2
+ARG ORCA_VERSION
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl squashfs-tools && rm -rf /var/lib/apt/lists/*
 RUN curl -fsSL -o /tmp/orca.AppImage \
       "https://github.com/SoftFever/OrcaSlicer/releases/download/v${ORCA_VERSION}/OrcaSlicer_Linux_AppImage_Ubuntu2404_V${ORCA_VERSION}.AppImage" \
@@ -35,7 +36,8 @@ FROM orca-${WITH_SLICER} AS orca-selected
 # ---- runtime
 FROM python:3.12-slim-trixie
 ARG WITH_STEP=true
-ARG WITH_SLICER=true
+ARG WITH_SLICER
+ARG ORCA_VERSION
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
     VAULT_LIBRARY=/library VAULT_DATA=/data VAULT_INBOX=/inbox VAULT_WEB=/app/web
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
@@ -53,6 +55,14 @@ RUN if [ "$WITH_SLICER" = "true" ]; then \
         libgstreamer-plugins-base1.0-0 libsecret-1-0 libsoup-3.0-0 libsm6 libice6 libmspack0t64 \
       && rm -rf /var/lib/apt/lists/*; fi
 COPY --from=orca-selected /opt/orca /opt/orca
+# The 3D editor's settings list comes from the source of the same OrcaSlicer version.
+COPY docker/orca_schema.py /tmp/orca_schema.py
+RUN if [ "$WITH_SLICER" = "true" ]; then \
+      base="https://raw.githubusercontent.com/SoftFever/OrcaSlicer/v${ORCA_VERSION}/src" \
+      && curl -fsSL -o /tmp/Tab.cpp "$base/slic3r/GUI/Tab.cpp" \
+      && curl -fsSL -o /tmp/PrintConfig.cpp "$base/libslic3r/PrintConfig.cpp" \
+      && python /tmp/orca_schema.py /tmp/Tab.cpp /tmp/PrintConfig.cpp /app/orca_schema.json \
+      && rm /tmp/Tab.cpp /tmp/PrintConfig.cpp; fi; rm /tmp/orca_schema.py
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh && mkdir -p /library /data /inbox
 EXPOSE 8000

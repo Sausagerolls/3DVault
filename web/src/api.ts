@@ -137,6 +137,23 @@ export type SlicerOptions = {
   default_bed_type: string;
   defaults: { layer_height: number | null; sparse_infill_density: number | null; wall_loops: number | null; enable_support: boolean; support_type: string; brim_type: string; sparse_infill_pattern?: string; top_shell_layers?: number | null; bottom_shell_layers?: number | null; support_threshold_angle?: number | null; support_on_build_plate_only?: boolean };
 };
+export type ProcessOption = {
+  key: string;
+  label?: string;
+  full_label?: string;
+  tooltip?: string;
+  unit?: string;
+  type: "bool" | "int" | "float" | "percent" | "float_or_percent" | "enum" | "string";
+  mode: "simple" | "advanced" | "develop";
+  min?: number;
+  max?: number;
+  multiline?: boolean;
+  choices?: { value: string; label: string }[];
+};
+export type ProcessSchema = {
+  pages: { title: string; groups: { title: string; options: string[] }[] }[];
+  options: Record<string, ProcessOption>;
+};
 export type SliceTask = { id: number; state: "queued" | "slicing" | "done" | "failed"; error: string; output_file_id: number | null; ahead?: number };
 export type ToolpathSummary = { layers: number; z: number[]; bounds: [number, number, number, number] | null };
 export type ToolpathLayer = { index: number; z: number; paths: { f: number; p: number[] }[] };

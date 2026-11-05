@@ -432,6 +432,22 @@ def _num(v):
         return None
 
 
+@router.get("/slicer/process-schema")
+def slicer_process_schema(user: User = Depends(current_user)):
+    """Orca's process settings, by page and group, for the 3D editor."""
+    schema = slicer.process_schema()
+    if schema is None:
+        raise HTTPException(409, "This server's image has no slicer settings list")
+    return schema
+
+
+@router.get("/slicer/process-values")
+def slicer_process_values(name: str, user: User = Depends(current_user)):
+    if not slicer.profiles.find("process", name):
+        raise HTTPException(404, "Unknown process profile")
+    return slicer.process_values(name)
+
+
 @router.post("/slicer/import")
 async def import_profiles(request: Request, admin: User = Depends(require_admin)):
     """Import presets exported from OrcaSlicer or Bambu Studio (.json, or a zip / .orca_printer / .orca_filament / .bbscfg bundle)."""
@@ -510,6 +526,11 @@ def create_slice(body: SliceIn, db: Session = Depends(get_db), user: User = Depe
         raise HTTPException(400, "Files must belong to one model")
     if any(f.ext not in SLICEABLE for f in files):
         raise HTTPException(400, "Only STL, OBJ, 3MF and STEP files can be sliced")
+    if "process_values" in body.overrides:
+        try:
+            body.overrides = {**body.overrides, "process_values": slicer.clean_process_values(body.overrides["process_values"] or {})}
+        except ValueError as e:
+            raise HTTPException(400, str(e))
     layout = body.overrides.get("layout")
     if layout is not None:
         _check_layout(layout, body.file_ids)

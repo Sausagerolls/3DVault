@@ -416,7 +416,7 @@ table.list input, table.list select { min-height: 28px; padding: 3px 8px; }
 .prepare-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--bg-raised); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .prepare-main { flex: 1; min-height: 0; display: flex; }
 .prepare-view { position: relative; flex: 1; min-width: 0; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-.prepare-panel { width: 320px; flex: none; overflow-y: auto; display: flex; flex-direction: column; gap: 0; padding: 0 14px 14px; background: var(--bg-raised); border-left: 1px solid var(--border); }
+.prepare-panel { width: 400px; flex: none; overflow-y: auto; display: flex; flex-direction: column; gap: 0; padding: 0 14px 14px; background: var(--bg-raised); border-left: 1px solid var(--border); }
 .prepare-actions { margin-top: auto; position: sticky; bottom: -14px; margin: auto -14px -14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; background: var(--bg-raised); border-top: 1px solid var(--border); }
 .prepare-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
 .prepare-note { position: absolute; top: 12px; left: 12px; padding: 4px 10px; border-radius: 999px; background: var(--bg-raised); font-size: 13px; }
@@ -430,3 +430,18 @@ table.list input, table.list select { min-height: 28px; padding: 3px 8px; }
 .prepare-group-title { flex: none; font-weight: 600; font-size: 13px; }
 .prepare-group-summary { flex: 1; min-width: 0; text-align: right; font-size: 12px; color: var(--text-faint); }
 .prepare-group-body { gap: 8px; padding: 0 0 14px; }
+.prepare-search { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.prepare-search input[type="search"] { flex: 1; min-width: 0; }
+.prepare-subhead { margin-top: 8px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-faint); }
+.prepare-setting { display: grid; grid-template-columns: minmax(0, 1fr) 170px; align-items: center; gap: 2px 8px; font-size: 12px; }
+.prepare-setting.wide { grid-template-columns: minmax(0, 1fr); }
+.prepare button.prepare-setting-label { display: block; height: auto; min-height: 26px; padding: 2px 0; background: transparent; border: 0; font-size: 12px; font-weight: 400; text-align: left; white-space: normal; color: var(--text-dim); }
+.prepare button.prepare-setting-label.changed { color: var(--accent); font-weight: 600; }
+.prepare-setting-control { display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-width: 0; }
+.prepare-setting-control select, .prepare-setting-control textarea, .prepare-input { flex: 1; min-width: 0; }
+.prepare-setting-control select, .prepare-setting-control input[type="text"] { min-height: 26px; height: 26px; font-size: 12px; padding-top: 0; padding-bottom: 0; }
+.prepare-input { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.prepare-input input { flex: 1; min-width: 0; }
+.prepare-input input.invalid { border-color: var(--danger); }
+.prepare button.prepare-reset { flex: none; width: 20px; height: 20px; padding: 0; background: transparent; border: 0; color: var(--accent); font-size: 14px; }
+.prepare-help { grid-column: 1 / -1; margin: 0 0 6px; font-size: 12px; white-space: pre-wrap; color: var(--text-faint); }

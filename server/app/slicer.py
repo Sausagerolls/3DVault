@@ -26,6 +26,7 @@ ORCA_BIN = os.environ.get("VAULT_ORCA_BIN", "/opt/orca/AppRun")
 SYSTEM_DIR = Path(os.environ.get("VAULT_ORCA_PROFILES", "/opt/orca/resources/profiles"))
 SLICE_TIMEOUT = int(os.environ.get("VAULT_SLICE_TIMEOUT", "1800"))
 TYPES = ("machine", "process", "filament")
+SCHEMA_PATH = Path(os.environ.get("VAULT_ORCA_SCHEMA", "/app/orca_schema.json"))
 
 # Settings the print sheet can change, with how to write them into the process profile.
 OVERRIDES = {
@@ -41,6 +42,69 @@ OVERRIDES = {
     "support_threshold_angle": lambda v: str(int(v)),
     "support_on_build_plate_only": lambda v: "1" if v else "0",
 }
+
+
+_schema: dict | None = None
+
+
+def process_schema() -> dict | None:
+    """Orca's process settings by page and group, built from its source with the image."""
+    global _schema
+    if _schema is None and SCHEMA_PATH.exists():
+        _schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    return _schema
+
+
+def process_values(process: str) -> dict[str, str]:
+    """A process profile's value for each setting, falling back on Orca's own default."""
+    schema = process_schema() or {"options": {}}
+    flat = profiles.flatten("process", process)
+    out = {}
+    for key, opt in schema["options"].items():
+        v = flat.get(key, opt.get("default"))
+        if isinstance(v, list):
+            v = v[0] if v else None
+        if v is not None:
+            out[key] = str(v)
+    return out
+
+
+def _is_number(text: str) -> bool:
+    try:
+        return float(text) == float(text)  # rules out "nan"
+    except ValueError:
+        return False
+
+
+def clean_process_values(values: dict) -> dict[str, str]:
+    """Check values from the editor. Only settings in the schema get through, so nothing that
+    runs commands on the server (post_process) can be set this way."""
+    schema = process_schema() or {"options": {}}
+    out = {}
+    for key, raw in values.items():
+        opt = schema["options"].get(key)
+        if opt is None:
+            raise ValueError(f"Unknown setting: {key}")
+        v = str(raw).strip() if opt["type"] != "string" else str(raw)
+        kind = opt["type"]
+        label = opt.get("label", key)
+        ok = {
+            "bool": v in ("0", "1"),
+            "int": re.fullmatch(r"-?\d+", v) is not None,
+            "float": _is_number(v),
+            "percent": _is_number(v.removesuffix("%")),
+            "float_or_percent": _is_number(v.removesuffix("%")),
+            "enum": not opt.get("choices") or v in {c["value"] for c in opt["choices"]},
+            "string": len(v) <= 20000,
+        }[kind]
+        if not ok:
+            raise ValueError(f"{label}: {raw!r} isn't a valid value")
+        if kind in ("int", "float", "percent", "float_or_percent"):
+            n = float(v.removesuffix("%"))
+            if ("min" in opt and n < opt["min"]) or ("max" in opt and n > opt["max"]):
+                raise ValueError(f"{label} must be between {opt.get('min', '')} and {opt.get('max', '')}")
+        out[key] = v
+    return out
 
 
 def available() -> bool:
@@ -279,6 +343,10 @@ def slice_files(inputs: list[Path], printer: str, process: str, filaments: list[
         for k, v in (overrides or {}).items():
             if k in OVERRIDES and v is not None:
                 proc[k] = OVERRIDES[k](v)
+        # Every setting from the 3D editor, already checked. Profiles hold some settings as a
+        # one-item list, and Orca expects those to stay lists.
+        for k, v in ((overrides or {}).get("process_values") or {}).items():
+            proc[k] = [v] if isinstance(proc.get(k), list) else v
         fil = [profiles.flatten("filament", f) for f in (filaments or [])] or []
         files = {"machine.json": machine, "process.json": proc}
         for i, f in enumerate(fil):
