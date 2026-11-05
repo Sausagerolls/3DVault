@@ -445,3 +445,6 @@ table.list input, table.list select { min-height: 28px; padding: 3px 8px; }
 .prepare-input input.invalid { border-color: var(--danger); }
 .prepare button.prepare-reset { flex: none; width: 20px; height: 20px; padding: 0; background: transparent; border: 0; color: var(--accent); font-size: 14px; }
 .prepare-help { grid-column: 1 / -1; margin: 0 0 6px; font-size: 12px; white-space: pre-wrap; color: var(--text-faint); }
+.prepare-layers { position: absolute; left: 14px; right: 14px; bottom: 14px; display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; background: var(--bg-raised); border: 1px solid var(--border); }
+.prepare-layers input[type="range"] { flex: 1; min-width: 0; }
+.prepare-layer-label { flex: none; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--text-dim); }

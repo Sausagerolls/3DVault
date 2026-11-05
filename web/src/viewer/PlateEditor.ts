@@ -3,6 +3,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import { CONTAINED, INTERSECTED, MeshBVH, NOT_INTERSECTED, acceleratedRaycast } from "three-mesh-bvh";
+import { ToolpathView, type ToolpathData } from "./Toolpaths";
 
 export type Tool = "select" | "move" | "rotate" | "flat" | "enforce" | "block" | "erase";
 export type Volume = { x: number; y: number; z: number };
@@ -95,6 +96,7 @@ export class PlateEditor {
   private downAt: { x: number; y: number } | null = null;
   private renderScheduled = false;
   private viewMoved = false;
+  private toolpaths: ToolpathView | null = null;
 
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -167,6 +169,41 @@ export class PlateEditor {
     }
     this.renderer.dispose();
     canvas.remove();
+  }
+
+  // ---------------------------------------------------------------- sliced preview
+
+  /** Swap the parts for the sliced print, including its supports. */
+  showToolpaths(data: ToolpathData, lineWidth: number): number[] {
+    this.hideToolpaths();
+    this.toolpaths = new ToolpathView(data, lineWidth);
+    this.scene.add(this.toolpaths.group);
+    for (const o of this.objects) o.mesh.visible = false;
+    this.transform.detach();
+    this.setTool("select");
+    this.render();
+    return this.toolpaths.features;
+  }
+
+  hideToolpaths(): void {
+    if (this.toolpaths) {
+      this.scene.remove(this.toolpaths.group);
+      this.toolpaths.dispose();
+      this.toolpaths = null;
+    }
+    for (const o of this.objects) o.mesh.visible = true;
+    this.syncGizmo();
+    this.render();
+  }
+
+  setToolpathLayer(layer: number): void {
+    this.toolpaths?.setLayer(layer);
+    this.render();
+  }
+
+  setToolpathFeature(feature: number, on: boolean): void {
+    this.toolpaths?.setFeatureVisible(feature, on);
+    this.render();
   }
 
   // ---------------------------------------------------------------- plate
@@ -293,7 +330,7 @@ export class PlateEditor {
   }
 
   private syncGizmo(): void {
-    if (this.selected && (this.tool === "move" || this.tool === "rotate")) {
+    if (!this.toolpaths && this.selected && (this.tool === "move" || this.tool === "rotate")) {
       this.transform.setMode(this.tool === "move" ? "translate" : "rotate");
       this.transform.showX = this.transform.showY = true;
       this.transform.showZ = this.tool === "rotate";
@@ -511,7 +548,7 @@ export class PlateEditor {
     if (!had || !this.downAt || e.type === "pointercancel") return;
     const moved = Math.hypot(e.clientX - this.downAt.x, e.clientY - this.downAt.y) > 5;
     this.downAt = null;
-    if (moved || this.isPaintTool || this.transform.axis) return;
+    if (moved || this.isPaintTool || this.transform.axis || this.toolpaths) return;
     const hit = this.ray(e);
     if (this.tool === "flat" && hit?.face) {
       this.layFlat(hit);

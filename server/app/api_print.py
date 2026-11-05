@@ -2,6 +2,7 @@
 
 import asyncio
 import math
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, Response
@@ -36,6 +37,8 @@ class MachineIn(BaseModel):
     printer_id: int | None = None
     enabled: bool = True
     slicer_printer: str = ""
+    installed_filament: str = ""
+    installed_colour: str = ""
 
 
 def _machine_out(db: Session, m: Machine) -> dict:
@@ -57,6 +60,8 @@ def _machine_out(db: Session, m: Machine) -> dict:
         "enabled": m.enabled,
         "needs_clear": m.needs_clear,
         "slicer_printer": m.slicer_printer,
+        "installed_filament": m.installed_filament,
+        "installed_colour": m.installed_colour,
         "has_camera": bool(driver and driver.has_camera),
         "formats": sorted(driver.formats) if driver else [],
         "status": (s or Status(state="offline", message="Disabled")).as_dict(),
@@ -113,6 +118,13 @@ def get_machine(machine_id: int, db: Session = Depends(get_db), user: User = Dep
     return _machine_out(db, _machine(db, machine_id))
 
 
+def _colour(text: str) -> str:
+    text = text.strip()
+    if text and not re.fullmatch(r"#[0-9a-fA-F]{6}", text):
+        raise HTTPException(400, "Filament colour must look like #RRGGBB")
+    return text
+
+
 @router.post("/machines")
 def create_machine(body: MachineIn, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     _check(db, body)
@@ -120,6 +132,7 @@ def create_machine(body: MachineIn, db: Session = Depends(get_db), admin: User =
         name=body.name.strip(), kind=body.kind, host=body.host.strip(), serial=body.serial.strip(),
         secret=seal(body.secret or ""), printer_id=body.printer_id, enabled=body.enabled,
         slicer_printer=body.slicer_printer.strip(),
+        installed_filament=body.installed_filament.strip(), installed_colour=_colour(body.installed_colour),
     )
     db.add(m)
     db.commit()
@@ -133,6 +146,7 @@ def patch_machine(machine_id: int, body: MachineIn, db: Session = Depends(get_db
     _check(db, body, machine_id)
     m.name, m.kind, m.host, m.serial = body.name.strip(), body.kind, body.host.strip(), body.serial.strip()
     m.printer_id, m.enabled, m.slicer_printer = body.printer_id, body.enabled, body.slicer_printer.strip()
+    m.installed_filament, m.installed_colour = body.installed_filament.strip(), _colour(body.installed_colour)
     if body.secret is not None:
         m.secret = seal(body.secret)
     db.commit()
@@ -370,6 +384,15 @@ def slicer_printers(q: str = "", limit: int = 50, user: User = Depends(current_u
     return found[: min(limit, 500)]
 
 
+@router.get("/slicer/filaments")
+def slicer_filaments(printer: str, user: User = Depends(current_user)):
+    """Filament profiles for a printer profile, for choosing what's loaded in a printer."""
+    try:
+        return slicer.profiles.for_printer("filament", printer)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
 @router.get("/slicer/options")
 def slicer_options(machine_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
     """Process and filament profiles, plate types and defaults for slicing on a printer."""
@@ -387,6 +410,10 @@ def slicer_options(machine_id: int, db: Session = Depends(get_db), user: User = 
     process = machine.get("default_print_profile", "")
     filament = (machine.get("default_filament_profile") or [""])[0]
     proc = slicer.profiles.for_printer("process", m.slicer_printer)
+    filaments = slicer.profiles.for_printer("filament", m.slicer_printer)
+    # What's loaded in the printer comes first, unless its profile has since gone.
+    if any(f["name"] == m.installed_filament for f in filaments):
+        filament = m.installed_filament
     defaults = {}
     if any(p["name"] == process for p in proc):
         flat = slicer.profiles.flatten("process", process)
@@ -407,7 +434,7 @@ def slicer_options(machine_id: int, db: Session = Depends(get_db), user: User = 
         "printer": m.slicer_printer,
         "volume": _build_volume(machine),
         "processes": proc,
-        "filaments": slicer.profiles.for_printer("filament", m.slicer_printer),
+        "filaments": filaments,
         "bed_types": [b for b in BED_TYPES if b not in unsupported],
         "default_process": process,
         "default_filament": filament,
@@ -541,6 +568,9 @@ def create_slice(body: SliceIn, db: Session = Depends(get_db), user: User = Depe
     for name in body.filaments:
         if not slicer.profiles.find("filament", name):
             raise HTTPException(400, f"Unknown filament profile: {name}")
+    # Without a filament slot chosen, the slice shows the colour loaded in the printer.
+    if m.installed_colour and not body.overrides.get("filament_colours"):
+        body.overrides = {**body.overrides, "filament_colours": [m.installed_colour]}
     t = SliceTask(
         user_id=user.id, model_id=files[0].model_id, machine_id=m.id, file_ids=body.file_ids,
         printer_profile=m.slicer_printer, process_profile=body.process,
@@ -569,6 +599,13 @@ def get_slice(slice_id: int, db: Session = Depends(get_db), user: User = Depends
 async def toolpath_summary(file_id: int, plate: int = 1, db: Session = Depends(get_db), user: User = Depends(current_user)):
     data = await _toolpaths(db, file_id, plate)
     return toolpaths.summary(data)
+
+
+@router.get("/files/{file_id}/toolpaths-data")
+async def toolpath_data(file_id: int, plate: int = 1, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    """All layers in one binary response. See toolpaths.pack for the format."""
+    data = await _toolpaths(db, file_id, plate)
+    return Response(toolpaths.pack(data), media_type="application/octet-stream")
 
 
 @router.get("/files/{file_id}/toolpaths/{index}")

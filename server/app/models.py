@@ -270,6 +270,9 @@ class Machine(Base):
     needs_clear: Mapped[bool] = mapped_column(Boolean, default=False)
     # Orca printer profile used when slicing for this printer, e.g. "Bambu Lab A1 mini 0.4 nozzle".
     slicer_printer: Mapped[str] = mapped_column(String(256), default="")
+    # What's loaded now: the Orca filament profile slices default to, and its colour (#RRGGBB).
+    installed_filament: Mapped[str] = mapped_column(String(256), default="")
+    installed_colour: Mapped[str] = mapped_column(String(16), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     printer: Mapped[Printer | None] = relationship()
 

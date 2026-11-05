@@ -109,6 +109,8 @@ export type Machine = {
   enabled: boolean;
   needs_clear: boolean;
   slicer_printer: string;
+  installed_filament: string;
+  installed_colour: string;
   has_camera: boolean;
   formats: string[];
   status: PrinterStatus;

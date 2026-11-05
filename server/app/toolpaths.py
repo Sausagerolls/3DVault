@@ -130,6 +130,20 @@ def summary(data: dict) -> dict:
     return {"layers": len(data["z"]), "z": [round(float(z), 3) for z in data["z"]], "bounds": bounds, "features": FEATURES}
 
 
+def pack(data: dict) -> bytes:
+    """Every layer at once for the 3D preview, little-endian: layer count and segment count as
+    uint32, then z (float32 per layer), offsets (uint32, layers + 1), segments (4 float32 each)
+    and features (uint8 each), which come last to keep the rest aligned."""
+    z, offsets, segs, feats = data["z"], data["offsets"], data["segs"], data["feats"]
+    return b"".join((
+        np.array([len(z), len(segs)], dtype="<u4").tobytes(),
+        z.astype("<f4").tobytes(),
+        offsets.astype("<u4").tobytes(),
+        segs.astype("<f4").tobytes(),
+        feats.astype("u1").tobytes(),
+    ))
+
+
 def layer(data: dict, index: int) -> dict:
     """One layer as polylines: consecutive segments of the same feature are joined."""
     if not 0 <= index < len(data["z"]):

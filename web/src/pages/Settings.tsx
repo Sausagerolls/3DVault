@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { api, type Collection, type Machine, type MachineKind, type Printer, type Rule, type User } from "../api";
+import { api, type Collection, type Machine, type MachineKind, type Printer, type Rule, type SlicerProfile, type User } from "../api";
 import { useUser } from "../App";
 import { CategorySelect, Icon, TagInput, buildTree, flattenTree, useCategories, useTags, useToast } from "../components/ui";
 
@@ -274,14 +274,44 @@ type MachineForm = {
   printer_id: number | null;
   enabled: boolean;
   slicer_printer: string;
+  installed_filament: string;
+  installed_colour: string;
   has_secret?: boolean;
 };
 
-const EMPTY_MACHINE: MachineForm = { name: "", kind: "", host: "", serial: "", secret: "", printer_id: null, enabled: true, slicer_printer: "" };
+const EMPTY_MACHINE: MachineForm = { name: "", kind: "", host: "", serial: "", secret: "", printer_id: null, enabled: true, slicer_printer: "", installed_filament: "", installed_colour: "" };
 
 type SlicerPrinter = { name: string; vendor: string; model: string; user: boolean };
 
 /** Search box over Orca's printer profiles; there are about a thousand. */
+/** What's loaded in the printer, which slicing for it starts from. */
+function InstalledFilament({ form, onChange }: { form: MachineForm; onChange: (patch: Partial<MachineForm>) => void }) {
+  const printer = form.slicer_printer.trim();
+  const filaments = useQuery({
+    queryKey: ["slicer-filaments", printer],
+    queryFn: () => api<SlicerProfile[]>(`/slicer/filaments?printer=${encodeURIComponent(printer)}`),
+    enabled: !!printer,
+    retry: false,
+  });
+  if (!printer) return null;
+  const known = filaments.data?.some((f) => f.name === form.installed_filament);
+  return (
+    <label>
+      Filament in the printer
+      <div className="row" style={{ gap: 8 }}>
+        <select className="grow" value={form.installed_filament} onChange={(e) => onChange({ installed_filament: e.target.value })}>
+          <option value="">The printer profile's default</option>
+          {form.installed_filament && !known && <option value={form.installed_filament}>{form.installed_filament}</option>}
+          {filaments.data?.map((f) => <option key={f.name} value={f.name}>{f.name.split(" @")[0]}{f.user ? " (imported)" : ""}</option>)}
+        </select>
+        <input type="color" aria-label="Filament colour" style={{ width: 40, flex: "none", padding: 2 }} value={form.installed_colour || "#808080"} onChange={(e) => onChange({ installed_colour: e.target.value })} />
+        {form.installed_colour && <button type="button" className="small" onClick={() => onChange({ installed_colour: "" })}>No colour</button>}
+      </div>
+      <span className="faint" style={{ fontSize: 12 }}>Slicing for this printer starts with this filament and colour. An AMS slot chosen for the print still takes priority.</span>
+    </label>
+  );
+}
+
 function SlicerPrinterInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [q, setQ] = useState(value);
   const found = useQuery({
@@ -484,6 +514,7 @@ function Machines() {
             <SlicerPrinterInput value={form.slicer_printer} onChange={(v) => setForm({ ...form, slicer_printer: v })} />
             <span className="faint" style={{ fontSize: 12 }}>The OrcaSlicer printer used when 3DVault slices for this printer.</span>
           </label>
+          <InstalledFilament form={form} onChange={(patch) => setForm({ ...form, ...patch })} />
           <label>
             Bed size
             <select value={form.printer_id ?? ""} onChange={(e) => setForm({ ...form, printer_id: e.target.value ? Number(e.target.value) : null })}>

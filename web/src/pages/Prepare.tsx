@@ -2,9 +2,10 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, type Machine, type ModelDetail, type PrintInfo, type ProcessOption, type ProcessSchema, type SliceTask, type SlicerOptions } from "../api";
-import { LayerPreview, duration, printableFiles } from "../components/Printing";
+import { duration, printableFiles } from "../components/Printing";
 import { useToast } from "../components/ui";
 import { PlateEditor, type Tool, type Transform } from "../viewer/PlateEditor";
+import { FEATURES, parseToolpaths, type ToolpathData } from "../viewer/Toolpaths";
 
 /** What's chosen for one slice, apart from the process settings. */
 type Settings = { process: string; filament: string; bed: string };
@@ -60,6 +61,10 @@ export default function PreparePage() {
   const [task, setTask] = useState<SliceTask | null>(null);
   const [slicedId, setSlicedId] = useState<number | null>(null);
   const [addFile, setAddFile] = useState("");
+  const [toolpaths, setToolpaths] = useState<ToolpathData | null>(null);
+  const [features, setFeatures] = useState<number[]>([]);
+  const [hiddenFeatures, setHiddenFeatures] = useState<Set<number>>(new Set());
+  const [layer, setLayer] = useState(0);
   const editor = editorRef.current;
   const selected = editor?.selected ?? null;
 
@@ -150,6 +155,47 @@ export default function PreparePage() {
     if (editor) editor.setOverhangs(overhangs, Number(value("support_threshold_angle")) || 30);
   }, [overhangs, value("support_threshold_angle"), editor]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // The sliced print replaces the parts in the 3D view until going back to editing.
+  useEffect(() => {
+    if (slicedId == null) return;
+    let stale = false;
+    const lineWidth = Number(value("line_width")) || 0.42;
+    (async () => {
+      try {
+        const res = await fetch(`/api/v1/files/${slicedId}/toolpaths-data`);
+        if (!res.ok) throw new Error(`Couldn't load the sliced print (${res.status})`);
+        const data = parseToolpaths(await res.arrayBuffer());
+        if (stale || !editorRef.current) return;
+        setToolpaths(data);
+        setFeatures(editorRef.current.showToolpaths(data, lineWidth));
+        setHiddenFeatures(new Set());
+        setLayer(data.layers - 1);
+      } catch (e) {
+        if (!stale) toast((e as Error).message, true);
+      }
+    })();
+    return () => {
+      stale = true;
+      setToolpaths(null);
+      editorRef.current?.hideToolpaths();
+    };
+  }, [slicedId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const showLayer = (n: number) => {
+    const top = (toolpaths?.layers ?? 1) - 1;
+    const next = Math.min(Math.max(n, 0), top);
+    setLayer(next);
+    editor?.setToolpathLayer(next);
+  };
+
+  const toggleFeature = (f: number) => {
+    const next = new Set(hiddenFeatures);
+    if (next.has(f)) next.delete(f);
+    else next.add(f);
+    setHiddenFeatures(next);
+    editor?.setToolpathFeature(f, !next.has(f));
+  };
+
   const set = (patch: Partial<Settings>) => setSettings((s) => (s ? { ...s, ...patch } : s));
   const pick = (t: Tool) => {
     setTool(t);
@@ -220,18 +266,27 @@ export default function PreparePage() {
         <button onClick={close}>{embedded ? "Close" : "Back"}</button>
         <strong className="ellipsis">{model.data?.name ?? "Prepare"}</strong>
         <span className="spacer" />
-        <div className="segment">
+        {slicedId == null && <div className="segment">
           {TOOLS.map((x) => <button key={x.id} title={x.title} className={tool === x.id ? "active" : ""} onClick={() => pick(x.id)}>{x.label}</button>)}
-        </div>
-        <div className="segment">
+        </div>}
+        {slicedId == null && <div className="segment">
           {PAINT_TOOLS.map((x) => <button key={x.id} title={x.title} className={tool === x.id ? "active" : ""} onClick={() => pick(x.id)}>{x.label}</button>)}
-        </div>
+        </div>}
         <button title="Back to the starting view" onClick={() => editor?.home()}>Reset view</button>
       </header>
       <div className="prepare-main">
         <div className="prepare-view">
           <div ref={holder} style={{ position: "absolute", inset: 0 }} />
           {!!loading && <div className="prepare-note">Loading parts…</div>}
+          {slicedId != null && !toolpaths && <div className="prepare-note">Loading the sliced print…</div>}
+          {toolpaths && (
+            <div className="prepare-layers">
+              <button className="small" aria-label="Down a layer" disabled={layer <= 0} onClick={() => showLayer(layer - 1)}>−</button>
+              <input aria-label="Layer" type="range" min={0} max={toolpaths.layers - 1} value={layer} onChange={(e) => showLayer(Number(e.target.value))} />
+              <button className="small" aria-label="Up a layer" disabled={layer >= toolpaths.layers - 1} onClick={() => showLayer(layer + 1)}>+</button>
+              <span className="prepare-layer-label">Layer {layer + 1} of {toolpaths.layers} · {toolpaths.z[layer].toFixed(2)} mm</span>
+            </div>
+          )}
           {["enforce", "block", "erase"].includes(tool) && (
             <div className="prepare-brush">
               <label className="row" style={{ gap: 8 }}>
@@ -246,7 +301,7 @@ export default function PreparePage() {
         <aside className="prepare-panel">
           {options.error && slicedId == null && <p style={{ margin: 0, color: "#d9822b" }}>{(options.error as Error).message}</p>}
           {slicedId != null ? (
-            <SliceResult fileId={slicedId} bed={options.data?.volume ?? null} onPrint={toPrint} onBack={() => setSlicedId(null)} />
+            <SliceResult fileId={slicedId} features={features} hidden={hiddenFeatures} onToggle={toggleFeature} onPrint={toPrint} onBack={() => setSlicedId(null)} />
           ) : (
             <>
               <Group id="parts" title="Parts" summary={editor?.objects.length === 1 ? "1 part" : `${editor?.objects.length ?? 0} parts`} defaultOpen>
@@ -524,11 +579,19 @@ function Num({ label, value, onChange, min, max, step }: { label: string; value:
   );
 }
 
-function SliceResult({ fileId, bed, onPrint, onBack }: { fileId: number; bed: { x: number; y: number } | null; onPrint: () => void; onBack: () => void }) {
+/** Stats and what to show of a sliced plate. The 3D view shows the print itself. */
+function SliceResult({ fileId, features, hidden, onToggle, onPrint, onBack }: {
+  fileId: number;
+  features: number[];
+  hidden: Set<number>;
+  onToggle: (feature: number) => void;
+  onPrint: () => void;
+  onBack: () => void;
+}) {
   const info = useQuery({ queryKey: ["print-info", fileId], queryFn: () => api<PrintInfo>(`/files/${fileId}/print-info`) });
   const plate = info.data?.plates[0];
   return (
-    <section className="col" style={{ gap: 10 }}>
+    <section className="col" style={{ gap: 12, paddingTop: 14 }}>
       <h3>Sliced</h3>
       <dl className="kv">
         <dt>Print time</dt>
@@ -536,7 +599,15 @@ function SliceResult({ fileId, bed, onPrint, onBack }: { fileId: number; bed: { 
         <dt>Filament</dt>
         <dd>{plate?.weight_g != null ? `${plate.weight_g.toFixed(1)} g` : "Unknown"}</dd>
       </dl>
-      <LayerPreview fileId={fileId} plate={plate?.index ?? 1} bed={bed} />
+      <div className="col" style={{ gap: 6 }}>
+        {FEATURES.filter((f) => features.includes(f.id)).map((f) => (
+          <label key={f.id} className="row" style={{ gap: 8 }}>
+            <input type="checkbox" checked={!hidden.has(f.id)} onChange={() => onToggle(f.id)} />
+            <span style={{ width: 12, height: 12, borderRadius: 3, background: f.colour, flex: "none" }} />
+            {f.name}
+          </label>
+        ))}
+      </div>
       <button className="primary" onClick={onPrint}>Continue to print</button>
       <button onClick={onBack}>Keep editing</button>
     </section>
