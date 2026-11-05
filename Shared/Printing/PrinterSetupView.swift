@@ -247,6 +247,7 @@ private struct MachineEditor: View {
     let changed: () async -> Void
     @State private var suggestions: [SlicerPrinterProfile] = []
     @State private var filaments: [SlicerProfile] = []
+    @State private var colour = Color.gray
     @State private var saving = false
     @State private var confirmRemove = false
     @State private var error: String?
@@ -310,13 +311,13 @@ private struct MachineEditor: View {
                     }
                     Toggle("Set the filament's colour", isOn: Binding(
                         get: { !draft.installedColour.isEmpty },
-                        set: { draft.installedColour = $0 ? "#808080" : "" }
+                        set: { draft.installedColour = $0 ? colour.hexString : "" }
                     ))
                     if !draft.installedColour.isEmpty {
-                        ColorPicker("Colour", selection: Binding(
-                            get: { Color(hex: draft.installedColour) ?? .gray },
-                            set: { draft.installedColour = $0.hexString }
-                        ), supportsOpacity: false)
+                        // Bound to the colour itself, not to the saved text. Turning each change into
+                        // text and back rounds it, which moved the picker's point as it was dragged.
+                        ColorPicker("Colour", selection: $colour, supportsOpacity: false)
+                            .onChange(of: colour) { draft.installedColour = colour.hexString }
                     }
                 }
             } header: {
@@ -356,6 +357,7 @@ private struct MachineEditor: View {
         .confirmationDialog("Remove \(draft.name)? Its print history is deleted too.", isPresented: $confirmRemove, titleVisibility: .visible) {
             Button("Remove Printer", role: .destructive) { remove() }
         }
+        .onAppear { colour = Color(hex: draft.installedColour) ?? .gray }
         .task(id: printerProfile) {
             // Typing a name looks up matching profiles, a moment after typing stops.
             guard let client = state.client, printerProfile.count >= 2 else {
