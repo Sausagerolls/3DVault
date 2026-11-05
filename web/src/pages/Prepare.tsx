@@ -4,11 +4,16 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, type Machine, type ModelDetail, type PrintInfo, type ProcessOption, type ProcessSchema, type SliceTask, type SlicerOptions } from "../api";
 import { duration, printableFiles } from "../components/Printing";
 import { useToast } from "../components/ui";
-import { PlateEditor, type Tool, type Transform } from "../viewer/PlateEditor";
+import { PlateEditor, type PlateObject, type Tool, type Transform } from "../viewer/PlateEditor";
 import { FEATURES, parseToolpaths, type ToolpathData } from "../viewer/Toolpaths";
 
 /** What's chosen for one slice, apart from the process settings. */
 type Settings = { process: string; filament: string; bed: string };
+type EditorScene = {
+  plates: { index: number; name: string }[];
+  objects: { object: number; name: string }[];
+  items: { object: number; plate: number; matrix: number[] | null }[];
+};
 
 const TOOLS: { id: Tool; label: string; title: string }[] = [
   { id: "select", label: "Select", title: "Choose a part and turn the view" },
@@ -58,6 +63,9 @@ export default function PreparePage() {
   const [advanced, setAdvanced] = useState(() => localStorage.getItem("prepare.advanced") !== "0");
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(0);
+  const [reading, setReading] = useState(0);
+  const platesRef = useRef<{ index: number; name: string }[]>([{ index: 1, name: "" }]);
+  const plateRef = useRef(1);
   const [task, setTask] = useState<SliceTask | null>(null);
   const [slicedId, setSlicedId] = useState<number | null>(null);
   const [addFile, setAddFile] = useState("");
@@ -65,6 +73,11 @@ export default function PreparePage() {
   const [features, setFeatures] = useState<number[]>([]);
   const [hiddenFeatures, setHiddenFeatures] = useState<Set<number>>(new Set());
   const [layer, setLayer] = useState(0);
+  const [plates, setPlates] = useState<{ index: number; name: string }[]>([{ index: 1, name: "" }]);
+  const [plate, setPlate] = useState(1);
+  const [partMenu, setPartMenu] = useState<{ part: PlateObject; x: number; y: number } | null>(null);
+  // Copies on plates not looked at yet. Big projects only load what's being looked at.
+  const waiting = useRef(new Map<number, { fileId: number; object: number; name: string; matrix: number[] | null }[]>());
   const editor = editorRef.current;
   const selected = editor?.selected ?? null;
 
@@ -78,6 +91,7 @@ export default function PreparePage() {
     if (!holder.current) return;
     const e = new PlateEditor(holder.current);
     e.onChange = () => redraw((n) => n + 1);
+    e.onPartMenu = (part, x, y) => setPartMenu({ part, x, y });
     // Painting only counts if supports are on, so turn them on at the first stroke.
     e.onPaint = (kind) => {
       if (kind !== "erase") setChanges((c) => ({ ...c, ...supportsForPainting(valueRef.current) }));
@@ -90,18 +104,80 @@ export default function PreparePage() {
     };
   }, []);
 
-  const addPart = async (fileId: number) => {
-    const f = model.data?.files.find((x) => x.id === fileId);
-    if (!editorRef.current || !f) return;
+  /** Load a plate's waiting copies. A project's parts stay arranged as they were in it. */
+  const loadPlate = async (index: number) => {
+    const e = editorRef.current;
+    const copies = waiting.current.get(index);
+    if (!e || !copies?.length) return;
+    waiting.current.delete(index);
+    const wasEmpty = !e.allObjects.some((o) => o.plate === index);
     setLoading((n) => n + 1);
     try {
-      await editorRef.current.add(fileId, f.rel_path.split("/").pop() ?? f.rel_path);
-    } catch (e) {
-      toast(`${f.rel_path}: ${(e as Error).message}`, true);
+      const added: PlateObject[] = [];
+      for (const c of copies) added.push(await e.add(c.fileId, c.object, c.name, index, wasEmpty ? c.matrix : null));
+      if (wasEmpty) e.centreGroup(added.filter((_, i) => copies[i].matrix));
+      if (added.length === 1 && index === plateRef.current) e.select(added[0]);
+    } catch (err) {
+      toast((err as Error).message, true);
     } finally {
       setLoading((n) => n - 1);
     }
   };
+
+  const addPart = async (fileId: number, first = false) => {
+    const f = model.data?.files.find((x) => x.id === fileId);
+    if (!editorRef.current || !f) return;
+    setReading((n) => n + 1);
+    try {
+      const scene = await api<EditorScene>(`/files/${fileId}/editor-scene`);
+      // A project with its own plates keeps them: first in an empty editor, else after the others.
+      const offset = scene.plates.length > 1 && !first ? Math.max(...platesRef.current.map((p) => p.index)) : 0;
+      const target = (index: number) => (scene.plates.length > 1 ? index + offset : plateRef.current);
+      if (scene.plates.length > 1) {
+        const next = first ? scene.plates : [...platesRef.current, ...scene.plates.map((p) => ({ ...p, index: p.index + offset }))];
+        platesRef.current = next;
+        setPlates(next);
+      }
+      for (const item of scene.items) {
+        const index = target(item.plate);
+        const list = waiting.current.get(index) ?? [];
+        list.push({ fileId, object: item.object, name: scene.objects[item.object]?.name ?? f.rel_path, matrix: item.matrix });
+        waiting.current.set(index, list);
+      }
+      const start = scene.plates.length > 1 ? target(scene.plates[0].index) : plateRef.current;
+      switchPlate(start);
+      await loadPlate(start);
+    } catch (e) {
+      toast(`${f.rel_path}: ${(e as Error).message}`, true);
+    } finally {
+      setReading((n) => n - 1);
+    }
+  };
+
+  const switchPlate = (index: number) => {
+    plateRef.current = index;
+    setPlate(index);
+    setPartMenu(null);
+    editorRef.current?.setPlate(index);
+    loadPlate(index);
+  };
+
+  const newPlate = () => {
+    const index = Math.max(...platesRef.current.map((p) => p.index)) + 1;
+    const next = [...platesRef.current, { index, name: "" }];
+    platesRef.current = next;
+    setPlates(next);
+    return index;
+  };
+
+  const sendToPlate = async (part: PlateObject, index: number) => {
+    setPartMenu(null);
+    // Anything waiting on that plate has to be there first, for the part to find a free spot.
+    await loadPlate(index);
+    editorRef.current?.moveToPlate(part, index);
+  };
+
+  const plateLabel = (p: { index: number; name: string }) => (p.name ? `${p.index} · ${p.name}` : `Plate ${p.index}`);
 
   // Put the requested files on the plate, or the first file there is.
   const started = useRef(false);
@@ -110,7 +186,8 @@ export default function PreparePage() {
     started.current = true;
     const asked = (params.get("files") ?? "").split(",").map(Number).filter((x) => parts.some((p) => p.id === x));
     (async () => {
-      for (const f of asked.length ? asked : [parts[0].id]) await addPart(f);
+      const ids = asked.length ? asked : [parts[0].id];
+      for (let i = 0; i < ids.length; i++) await addPart(ids[i], i === 0);
     })();
   }, [parts, editor]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -257,8 +334,8 @@ export default function PreparePage() {
     if (selected && editor) editor.setTransform(selected, patch);
   };
   const busy = task != null && task.state !== "failed";
-  const empty = !editor?.objects.length;
-  const blockReason = empty ? "Add a part to the plate first." : editor?.outOfBounds ? "A part is outside the printable area. Move it or make it smaller." : options.error ? (options.error as Error).message : "";
+  const empty = !editor?.objects.length || waiting.current.has(plate);
+  const blockReason = empty ? (loading ? "Loading parts…" : "Add a part to this plate first, or send one here.") : editor?.outOfBounds ? "A part is outside the printable area. Move it or make it smaller." : options.error ? (options.error as Error).message : "";
 
   return (
     <div className="prepare">
@@ -277,7 +354,30 @@ export default function PreparePage() {
       <div className="prepare-main">
         <div className="prepare-view">
           <div ref={holder} style={{ position: "absolute", inset: 0 }} />
-          {!!loading && <div className="prepare-note">Loading parts…</div>}
+          {!!reading && <div className="prepare-note">Reading the file. A big project can take several minutes the first time…</div>}
+          {!reading && !!loading && <div className="prepare-note">Loading parts…</div>}
+          {slicedId == null && (
+            <div className="prepare-plates" role="tablist" aria-label="Build plates">
+              {plates.map((p) => (
+                <button key={p.index} role="tab" aria-selected={p.index === plate} className={`small ${p.index === plate ? "active" : ""}`} onClick={() => switchPlate(p.index)}>
+                  {plateLabel(p)}
+                </button>
+              ))}
+              <button className="small" title="Add a build plate" aria-label="Add a build plate" onClick={() => switchPlate(newPlate())}>+</button>
+            </div>
+          )}
+          {partMenu && editor && (
+            <PartMenu
+              at={partMenu}
+              plates={plates.filter((p) => p.index !== plate)}
+              label={plateLabel}
+              onSend={(index) => sendToPlate(partMenu.part, index)}
+              onNewPlate={() => sendToPlate(partMenu.part, newPlate())}
+              onDuplicate={() => { setPartMenu(null); editor.duplicate(partMenu.part); }}
+              onRemove={() => { setPartMenu(null); editor.remove(partMenu.part); }}
+              onClose={() => setPartMenu(null)}
+            />
+          )}
           {slicedId != null && !toolpaths && <div className="prepare-note">Loading the sliced print…</div>}
           {toolpaths && (
             <div className="prepare-layers">
@@ -306,7 +406,17 @@ export default function PreparePage() {
             <>
               <Group id="parts" title="Parts" summary={editor?.objects.length === 1 ? "1 part" : `${editor?.objects.length ?? 0} parts`} defaultOpen>
                 {editor?.objects.map((o) => (
-                  <button key={o.id} className={`part ${selected === o ? "active" : ""}`} onClick={() => editor.select(o)} title={o.name}>
+                  <button
+                    key={o.id}
+                    className={`part ${selected === o ? "active" : ""}`}
+                    title={o.name}
+                    onClick={() => editor.select(o)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      editor.select(o);
+                      setPartMenu({ part: o, x: e.clientX, y: e.clientY });
+                    }}
+                  >
                     <span className="ellipsis">{o.name}</span>
                     {o.outOfBounds && <span style={{ color: "var(--danger)" }}>Outside</span>}
                   </button>
@@ -415,7 +525,9 @@ export default function PreparePage() {
                     Sliced on the server for {machine.name}{Object.keys(changes).length ? `, with ${Object.keys(changes).length} changed ${Object.keys(changes).length === 1 ? "setting" : "settings"}` : ""}.
                   </p>
                 )}
-                <button className="primary" disabled={!!blockReason || !settings || busy} onClick={slice}>Slice plate</button>
+                <button className="primary" disabled={!!blockReason || !settings || busy} onClick={slice}>
+                  {plates.length > 1 ? `Slice plate ${plate}` : "Slice plate"}
+                </button>
               </footer>
             </>
           )}
@@ -556,6 +668,45 @@ function Group({ id, title, summary, defaultOpen, forceOpen, children }: { id: s
       </button>
       {open && <div className="col prepare-group-body">{children}</div>}
     </section>
+  );
+}
+
+/** The menu for a part, from a right click or long press. */
+function PartMenu({ at, plates, label, onSend, onNewPlate, onDuplicate, onRemove, onClose }: {
+  at: { x: number; y: number };
+  plates: { index: number; name: string }[];
+  label: (p: { index: number; name: string }) => string;
+  onSend: (index: number) => void;
+  onNewPlate: () => void;
+  onDuplicate: () => void;
+  onRemove: () => void;
+  onClose: () => void;
+}) {
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const away = (e: PointerEvent) => {
+      if (!box.current?.contains(e.target as Node)) onClose();
+    };
+    const key = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("pointerdown", away, true);
+    window.addEventListener("keydown", key);
+    return () => {
+      window.removeEventListener("pointerdown", away, true);
+      window.removeEventListener("keydown", key);
+    };
+  }, [onClose]);
+  // Stays on the screen when opened near an edge.
+  const left = Math.min(at.x, window.innerWidth - 230);
+  const top = Math.min(at.y, window.innerHeight - 90 - (plates.length + 3) * 32);
+  return (
+    <div ref={box} className="prepare-menu" role="menu" style={{ left, top: Math.max(top, 8) }}>
+      <div className="prepare-menu-head">Send to plate</div>
+      {plates.map((p) => <button key={p.index} role="menuitem" onClick={() => onSend(p.index)}>{label(p)}</button>)}
+      <button role="menuitem" onClick={onNewPlate}>New plate</button>
+      <hr />
+      <button role="menuitem" onClick={onDuplicate}>Duplicate</button>
+      <button role="menuitem" className="danger" onClick={onRemove}>Remove</button>
+    </div>
   );
 }
 

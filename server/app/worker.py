@@ -137,7 +137,11 @@ def run_slice(slice_id: int) -> None:
     try:
         if layout:
             # Placed and painted in the 3D editor.
-            prepare.write_project([{**item, "path": prepare.editor_mesh_path(paths[item["file_id"]], item["file_id"])} for item in layout], project)
+            placed = []
+            for item in layout:
+                full, light = prepare.object_paths(paths[item["file_id"]], item["file_id"], int(item.get("object") or 0))
+                placed.append({**item, "path": full, "light": light})
+            prepare.write_project(placed, project)
             slicer.slice_files([project], *args, out, arrange=False)
         else:
             slicer.slice_files(inputs, *args, out)

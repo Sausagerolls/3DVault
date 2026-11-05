@@ -518,25 +518,42 @@ def _check_layout(layout: list, file_ids: list[int]) -> None:
             raise HTTPException(400, "Bad position on the plate")
         if item.get("file_id") not in file_ids:
             raise HTTPException(400, "A part on the plate isn't one of the files being sliced")
+        if not isinstance(item.get("object", 0), int) or item.get("object", 0) < 0:
+            raise HTTPException(400, "Bad object on the plate")
         for key in ("enforce", "block"):
             runs = item.get(key) or []
             if not isinstance(runs, list) or len(runs) % 2 or not all(isinstance(x, int) and x >= 0 for x in runs):
                 raise HTTPException(400, "Bad support painting")
 
 
-@router.get("/files/{file_id}/editor-mesh")
-async def editor_mesh(file_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
-    """The file's mesh for the 3D editor, as a binary STL."""
+def _editable_file(db: Session, file_id: int) -> File:
     f = db.get(File, file_id)
     if f is None:
         raise HTTPException(404)
     if f.ext not in SLICEABLE or print_format(f.rel_path, f.meta) is not None:
         raise HTTPException(400, "This file can't be placed on a plate")
+    return f
+
+
+@router.get("/files/{file_id}/editor-scene")
+async def editor_scene(file_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    """A file's plates, its objects, and where each copy of an object goes, for the 3D editor."""
+    f = _editable_file(db, file_id)
     try:
-        path = await asyncio.to_thread(prepare.editor_mesh_path, file_path(f), f.id)
+        return await asyncio.to_thread(prepare.editor_scene, file_path(f), f.id)
     except MeshError as e:
         raise HTTPException(422, str(e))
-    return FileResponse(path, media_type="model/stl")
+
+
+@router.get("/files/{file_id}/editor-mesh")
+async def editor_mesh(file_id: int, object: int = 0, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    """One object's mesh for the 3D editor, as a binary STL."""
+    f = _editable_file(db, file_id)
+    try:
+        _, shown = await asyncio.to_thread(prepare.object_paths, file_path(f), f.id, object)
+    except MeshError as e:
+        raise HTTPException(422, str(e))
+    return FileResponse(shown, media_type="model/stl")
 
 
 @router.post("/slices")

@@ -20,12 +20,15 @@ const OVERHANG_COLOUR = new THREE.Color("#f2b84b");
 const OUT_OF_BOUNDS = new THREE.Color("#ff8080");
 const GAP_MM = 6;
 
-export type PlateItem = { file_id: number; name: string; matrix: number[]; enforce: number[]; block: number[] };
+export type PlateItem = { file_id: number; object: number; name: string; matrix: number[]; enforce: number[]; block: number[] };
+type Loaded = { geometry: THREE.BufferGeometry; centre: THREE.Vector3; faces: number };
 
 export class PlateObject {
   constructor(
     public id: number,
     public fileId: number,
+    public object: number,
+    public plate: number,
     public name: string,
     public mesh: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>,
     /** The geometry is moved to its own centre to turn around it. This is how far. */
@@ -68,7 +71,9 @@ export type Transform = { x: number; y: number; rx: number; ry: number; rz: numb
  * one millimetre with the origin at the plate's front left corner, the same as the printer.
  */
 export class PlateEditor {
-  objects: PlateObject[] = [];
+  /** Parts on every plate. Only those on the current plate are shown, edited and sliced. */
+  allObjects: PlateObject[] = [];
+  plate = 1;
   selected: PlateObject | null = null;
   tool: Tool = "select";
   brushMm = 4;
@@ -76,6 +81,8 @@ export class PlateEditor {
   overhangAngle = 30;
   /** Called after anything changes that the panels show. */
   onChange: () => void = () => {};
+  /** Right click or long press on a part, at these page coordinates. */
+  onPartMenu: (o: PlateObject, x: number, y: number) => void = () => {};
   /** Called the first time a triangle is painted in a stroke. */
   onPaint: (kind: "enforce" | "block" | "erase") => void = () => {};
 
@@ -84,7 +91,7 @@ export class PlateEditor {
   private camera = new THREE.PerspectiveCamera(35, 1, 1, 10000);
   private controls: OrbitControls;
   private transform: TransformControls;
-  private plate = new THREE.Group();
+  private bed = new THREE.Group();
   private brush: THREE.Mesh;
   private raycaster = new THREE.Raycaster();
   private volume: Volume = { x: 180, y: 180, z: 180 };
@@ -97,6 +104,8 @@ export class PlateEditor {
   private renderScheduled = false;
   private viewMoved = false;
   private toolpaths: ToolpathView | null = null;
+  private geometries = new Map<string, Promise<Loaded>>();
+  private longPress = 0;
 
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -111,7 +120,7 @@ export class PlateEditor {
     const key = new THREE.DirectionalLight(0xffffff, 1.9);
     key.position.set(-1, 1.5, 2);
     this.camera.add(key);
-    this.scene.add(this.camera, this.plate);
+    this.scene.add(this.camera, this.bed);
 
     this.controls = new OrbitControls(this.camera, canvas);
     this.controls.enableDamping = false;
@@ -163,7 +172,8 @@ export class PlateEditor {
     window.removeEventListener("pointercancel", this.pointerUp);
     this.transform.dispose();
     this.controls.dispose();
-    for (const o of this.objects) {
+    clearTimeout(this.longPress);
+    for (const o of this.allObjects) {
       o.mesh.geometry.dispose();
       o.mesh.material.dispose();
     }
@@ -178,7 +188,7 @@ export class PlateEditor {
     this.hideToolpaths();
     this.toolpaths = new ToolpathView(data, lineWidth);
     this.scene.add(this.toolpaths.group);
-    for (const o of this.objects) o.mesh.visible = false;
+    for (const o of this.allObjects) o.mesh.visible = false;
     this.transform.detach();
     this.setTool("select");
     this.render();
@@ -191,7 +201,7 @@ export class PlateEditor {
       this.toolpaths.dispose();
       this.toolpaths = null;
     }
-    for (const o of this.objects) o.mesh.visible = true;
+    for (const o of this.allObjects) o.mesh.visible = o.plate === this.plate;
     this.syncGizmo();
     this.render();
   }
@@ -210,24 +220,24 @@ export class PlateEditor {
 
   setVolume(volume: Volume): void {
     this.volume = volume;
-    this.plate.clear();
+    this.bed.clear();
     const { x, y, z } = volume;
     const top = new THREE.Mesh(new THREE.PlaneGeometry(x, y), new THREE.MeshBasicMaterial({ color: 0x3a3a44, transparent: true, opacity: 0.55 }));
     top.position.set(x / 2, y / 2, -0.05);
-    this.plate.add(top);
+    this.bed.add(top);
     const lines: number[] = [];
     const step = x >= 300 ? 50 : 20;
     for (let i = 0; i <= x + 0.01; i += step) lines.push(i, 0, 0, i, y, 0);
     for (let j = 0; j <= y + 0.01; j += step) lines.push(0, j, 0, x, j, 0);
     const grid = new THREE.BufferGeometry();
     grid.setAttribute("position", new THREE.Float32BufferAttribute(lines, 3));
-    this.plate.add(new THREE.LineSegments(grid, new THREE.LineBasicMaterial({ color: 0x70707e, transparent: true, opacity: 0.6 })));
+    this.bed.add(new THREE.LineSegments(grid, new THREE.LineBasicMaterial({ color: 0x70707e, transparent: true, opacity: 0.6 })));
     const box = new THREE.LineSegments(
       new THREE.EdgesGeometry(new THREE.BoxGeometry(x, y, z)),
       new THREE.LineBasicMaterial({ color: 0x70707e, transparent: true, opacity: 0.35 }),
     );
     box.position.set(x / 2, y / 2, z / 2);
-    this.plate.add(box);
+    this.bed.add(box);
     this.home();
     for (const o of this.objects) this.settle(o);
   }
@@ -247,42 +257,110 @@ export class PlateEditor {
 
   // ---------------------------------------------------------------- parts
 
-  async add(fileId: number, name: string): Promise<PlateObject> {
-    const geometry = await new STLLoader().loadAsync(`/api/v1/files/${fileId}/editor-mesh`);
-    geometry.computeBoundingBox();
-    const centre = geometry.boundingBox!.getCenter(new THREE.Vector3());
-    geometry.translate(-centre.x, -centre.y, -centre.z);
-    geometry.computeBoundingSphere();
-    // "indirect" keeps the triangles in the file's order, which painting is sent back in.
-    geometry.boundsTree = new MeshBVH(geometry, { indirect: true });
-    const faces = geometry.getAttribute("position").count / 3;
-    const o = this.place(fileId, name, geometry, centre, new Uint8Array(faces));
-    this.moveToFreeSpot(o);
-    this.select(o);
+  /** Parts on the current plate. */
+  get objects(): PlateObject[] {
+    return this.allObjects.filter((o) => o.plate === this.plate);
+  }
+
+  private load(fileId: number, object: number): Promise<Loaded> {
+    const key = `${fileId}:${object}`;
+    let loading = this.geometries.get(key);
+    if (!loading) {
+      loading = new STLLoader().loadAsync(`/api/v1/files/${fileId}/editor-mesh?object=${object}`).then((geometry) => {
+        geometry.computeBoundingBox();
+        const centre = geometry.boundingBox!.getCenter(new THREE.Vector3());
+        geometry.translate(-centre.x, -centre.y, -centre.z);
+        geometry.computeBoundingSphere();
+        // "indirect" keeps the triangles in the file's order, which painting is sent back in.
+        geometry.boundsTree = new MeshBVH(geometry, { indirect: true });
+        return { geometry, centre, faces: geometry.getAttribute("position").count / 3 };
+      });
+      loading.catch(() => this.geometries.delete(key));
+      this.geometries.set(key, loading);
+    }
+    return loading;
+  }
+
+  /**
+   * Add a copy of an object to a plate. With a matrix it goes where its project had it, which
+   * place() can then shift as a group. Without one it finds a free spot on the plate.
+   */
+  async add(fileId: number, object: number, name: string, plate: number, matrix?: number[] | null): Promise<PlateObject> {
+    const { geometry, centre, faces } = await this.load(fileId, object);
+    const o = this.place(fileId, object, plate, name, this.shareShape(geometry), centre, new Uint8Array(faces));
+    if (matrix) {
+      new THREE.Matrix4().fromArray(matrix).multiply(new THREE.Matrix4().makeTranslation(centre.x, centre.y, centre.z))
+        .decompose(o.mesh.position, o.mesh.quaternion, o.mesh.scale);
+      o.mesh.updateMatrixWorld(true);
+    } else {
+      this.moveToFreeSpot(o);
+    }
+    this.onChange();
     return o;
   }
 
-  private place(fileId: number, name: string, geometry: THREE.BufferGeometry, centre: THREE.Vector3, paint: Uint8Array): PlateObject {
+  /** The shape is shared between copies, while the paint and colours belong to each. */
+  private shareShape(from: THREE.BufferGeometry): THREE.BufferGeometry {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", from.getAttribute("position"));
+    g.setAttribute("normal", from.getAttribute("normal"));
+    g.boundsTree = from.boundsTree;
+    g.boundingSphere = from.boundingSphere;
+    g.boundingBox = from.boundingBox;
+    return g;
+  }
+
+  /** Centre a project's parts on the plate as a group, keeping how they sit relative to each other. */
+  centreGroup(group: PlateObject[]): void {
+    const box = new THREE.Box3();
+    for (const o of group) box.expandByObject(o.mesh, true);
+    if (box.isEmpty()) return;
+    const dx = this.volume.x / 2 - (box.min.x + box.max.x) / 2;
+    const dy = this.volume.y / 2 - (box.min.y + box.max.y) / 2;
+    for (const o of group) {
+      o.mesh.position.x += dx;
+      o.mesh.position.y += dy;
+      this.settle(o);
+    }
+    this.onChange();
+  }
+
+  /** Show another plate. Its parts stay on it, and only the shown plate is edited or sliced. */
+  setPlate(plate: number): void {
+    this.plate = plate;
+    this.select(null);
+    for (const o of this.allObjects) {
+      o.mesh.visible = o.plate === plate && !this.toolpaths;
+      if (o.plate === plate) this.settle(o);
+    }
+    this.onChange();
+    this.render();
+  }
+
+  moveToPlate(o: PlateObject, plate: number): void {
+    if (this.selected === o) this.select(null);
+    o.plate = plate;
+    o.mesh.visible = plate === this.plate;
+    this.moveToFreeSpot(o);
+    this.onChange();
+    this.render();
+  }
+
+  private place(fileId: number, object: number, plate: number, name: string, geometry: THREE.BufferGeometry, centre: THREE.Vector3, paint: Uint8Array): PlateObject {
     geometry.setAttribute("color", new THREE.BufferAttribute(new Float32Array(geometry.getAttribute("position").count * 3), 3));
     const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.02, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.raycast = acceleratedRaycast;
-    const o = new PlateObject(this.nextId++, fileId, name, mesh, centre, paint);
-    this.objects.push(o);
+    const o = new PlateObject(this.nextId++, fileId, object, plate, name, mesh, centre, paint);
+    mesh.visible = plate === this.plate && !this.toolpaths;
+    this.allObjects.push(o);
     this.scene.add(mesh);
     this.colourAll(o);
     return o;
   }
 
   duplicate(o: PlateObject): void {
-    // The shape is shared, while the paint and colours belong to each copy.
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", o.mesh.geometry.getAttribute("position"));
-    g.setAttribute("normal", o.mesh.geometry.getAttribute("normal"));
-    g.boundsTree = o.mesh.geometry.boundsTree;
-    g.boundingSphere = o.mesh.geometry.boundingSphere;
-    g.boundingBox = o.mesh.geometry.boundingBox;
-    const copy = this.place(o.fileId, o.name, g, o.centre, o.paint.slice());
+    const copy = this.place(o.fileId, o.object, o.plate, o.name, this.shareShape(o.mesh.geometry), o.centre, o.paint.slice());
     copy.mesh.position.copy(o.mesh.position);
     copy.mesh.quaternion.copy(o.mesh.quaternion);
     copy.mesh.scale.copy(o.mesh.scale);
@@ -294,7 +372,7 @@ export class PlateEditor {
     if (this.selected === o) this.select(null);
     this.scene.remove(o.mesh);
     o.mesh.material.dispose();
-    this.objects = this.objects.filter((x) => x !== o);
+    this.allObjects = this.allObjects.filter((x) => x !== o);
     this.refreshBounds();
     this.onChange();
     this.render();
@@ -367,7 +445,7 @@ export class PlateEditor {
     o.mesh.position.set(width / 2, depth / 2, 0);
     o.mesh.updateMatrixWorld(true);
     const size = new THREE.Box3().setFromObject(o.mesh, true).getSize(new THREE.Vector3());
-    const others = this.objects.filter((x) => x !== o).map((x) => new THREE.Box3().setFromObject(x.mesh, true));
+    const others = this.allObjects.filter((x) => x !== o && x.plate === o.plate).map((x) => new THREE.Box3().setFromObject(x.mesh, true));
     const free = (px: number, py: number) =>
       others.every((b) =>
         px + size.x / 2 + GAP_MM <= b.min.x || px - size.x / 2 - GAP_MM >= b.max.x ||
@@ -421,7 +499,7 @@ export class PlateEditor {
 
   /** Items for the server, in the format of POST /slices. */
   layout(): PlateItem[] {
-    return this.objects.map((o) => ({ file_id: o.fileId, name: o.name, matrix: o.matrix(), enforce: o.runs(ENFORCE), block: o.runs(BLOCK) }));
+    return this.objects.map((o) => ({ file_id: o.fileId, object: o.object, name: o.name, matrix: o.matrix(), enforce: o.runs(ENFORCE), block: o.runs(BLOCK) }));
   }
 
   get outOfBounds(): boolean {
@@ -442,7 +520,7 @@ export class PlateEditor {
   setOverhangs(on: boolean, angle: number): void {
     this.showOverhangs = on;
     this.overhangAngle = angle;
-    for (const o of this.objects) this.colourAll(o);
+    for (const o of this.allObjects) this.colourAll(o);
     this.render();
   }
 
@@ -515,7 +593,22 @@ export class PlateEditor {
 
   private pointerDown = (e: PointerEvent) => {
     this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    this.downAt = this.pointers.size === 1 && e.button === 0 ? { x: e.clientX, y: e.clientY } : null;
+    this.downAt = this.pointers.size === 1 && (e.button === 0 || e.button === 2) ? { x: e.clientX, y: e.clientY } : null;
+    clearTimeout(this.longPress);
+    // On a touch screen, holding a finger still on a part does the job of a right click.
+    if (e.pointerType !== "mouse" && this.pointers.size === 1) {
+      const at = e;
+      this.longPress = window.setTimeout(() => {
+        const hit = this.ray(at);
+        const o = hit && this.objectOf(hit);
+        this.painting = false;
+        this.downAt = null;
+        if (o) {
+          this.select(o);
+          this.onPartMenu(o, at.clientX, at.clientY);
+        }
+      }, 550);
+    }
     if (this.isPaintTool) {
       // A second finger means turning the view, so the stroke ends here.
       this.painting = this.pointers.size === 1 && e.button === 0;
@@ -528,6 +621,7 @@ export class PlateEditor {
 
   private pointerMove = (e: PointerEvent) => {
     if (this.pointers.has(e.pointerId)) this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (this.downAt && Math.hypot(e.clientX - this.downAt.x, e.clientY - this.downAt.y) > 8) clearTimeout(this.longPress);
     if (!this.isPaintTool) return;
     if (this.painting && this.pointers.size === 1) {
       this.paintAt(e);
@@ -543,12 +637,23 @@ export class PlateEditor {
 
   private pointerUp = (e: PointerEvent) => {
     const had = this.pointers.delete(e.pointerId);
+    clearTimeout(this.longPress);
     this.painting = false;
     if (e.pointerType !== "mouse") this.brush.visible = false;
     if (!had || !this.downAt || e.type === "pointercancel") return;
     const moved = Math.hypot(e.clientX - this.downAt.x, e.clientY - this.downAt.y) > 5;
     this.downAt = null;
-    if (moved || this.isPaintTool || this.transform.axis || this.toolpaths) return;
+    if (moved || this.toolpaths) return;
+    if (e.button === 2) {
+      const hit = this.ray(e);
+      const o = hit && this.objectOf(hit);
+      if (o) {
+        this.select(o);
+        this.onPartMenu(o, e.clientX, e.clientY);
+      }
+      return;
+    }
+    if (this.isPaintTool || this.transform.axis) return;
     const hit = this.ray(e);
     if (this.tool === "flat" && hit?.face) {
       this.layFlat(hit);

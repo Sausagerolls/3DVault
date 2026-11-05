@@ -53,6 +53,56 @@ def test_project_holds_transform_and_paint():
     assert root.find(".//m:item", ns).get("transform").split()[-3:] == ["40.000000", "50.000000", "5.000000"]
 
 
+def test_paint_transfers_to_the_full_mesh():
+    box = trimesh.creation.box((40, 40, 40))
+    v, f = prepare.refine(box.vertices, box.faces, 1.0)
+    full = trimesh.Trimesh(v, f, process=False)
+    v, f = prepare.refine(box.vertices, box.faces, 5.0)
+    light = trimesh.Trimesh(v, f, process=False)
+    painted = np.where(np.isclose(light.triangles_center[:, 2], -20) & (light.triangles_center[:, 0] < 0))[0]
+    out = prepare.transfer_paint(light, full, painted)
+    centres = full.triangles_center[out]
+    assert len(out) > 100
+    # The bottom's half stays on the bottom, with a little spread, and misses the far side.
+    assert np.isclose(centres[:, 2], -20).mean() > 0.95
+    assert (centres[:, 0] < 10).all()
+    assert (centres[:, 2] < -5).all()
+
+
+def test_scene_splits_objects_plates_and_copies():
+    a = trimesh.creation.box((10, 10, 10))
+    verts = "".join(f'<vertex x="{x}" y="{y}" z="{z}"/>' for x, y, z in a.vertices)
+    tris = "".join(f'<triangle v1="{p}" v2="{q}" v3="{r}"/>' for p, q, r in a.faces)
+    mesh = f"<mesh><vertices>{verts}</vertices><triangles>{tris}</triangles></mesh>"
+    model = (
+        '<model xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02"><resources>'
+        f'<object id="1" type="model">{mesh}</object><object id="2" type="model" name="Plain">{mesh}</object>'
+        '</resources><build><item objectid="1" transform="1 0 0 0 1 0 0 0 1 5 6 7"/><item objectid="1"/><item objectid="2"/></build></model>'
+    )
+    settings_xml = (
+        '<config><object id="1"><metadata key="name" value="Named"/></object>'
+        '<plate><metadata key="plater_id" value="1"/><metadata key="plater_name" value="First"/>'
+        '<model_instance><metadata key="object_id" value="1"/><metadata key="instance_id" value="0"/></model_instance></plate>'
+        '<plate><metadata key="plater_id" value="2"/>'
+        '<model_instance><metadata key="object_id" value="1"/><metadata key="instance_id" value="1"/></model_instance>'
+        '<model_instance><metadata key="object_id" value="2"/><metadata key="instance_id" value="0"/></model_instance></plate></config>'
+    )
+    from app.threemf import read_scene
+
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "p.3mf"
+        with zipfile.ZipFile(path, "w") as z:
+            z.writestr("3D/3dmodel.model", model)
+            z.writestr("Metadata/model_settings.config", settings_xml)
+        written = []
+        scene = read_scene(path, lambda n, v, f: written.append((n, len(f))))
+    assert written == [(0, 12), (1, 12)]
+    assert scene["plates"] == [{"index": 1, "name": "First"}, {"index": 2, "name": ""}]
+    assert [o["name"] for o in scene["objects"]] == ["Named", "Plain"]
+    assert [(i["object"], i["plate"]) for i in scene["items"]] == [(0, 1), (0, 2), (1, 2)]
+    assert scene["items"][0]["matrix"][12:15] == [5, 6, 7]
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

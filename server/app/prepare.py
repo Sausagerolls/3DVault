@@ -6,6 +6,8 @@ that copy, and the server rebuilds the same copy to write them into a project fo
 so triangle numbers always match.
 """
 
+import json
+import threading
 import zipfile
 from pathlib import Path
 from xml.sax.saxutils import escape
@@ -14,12 +16,17 @@ import numpy as np
 import trimesh
 
 from .config import settings
-from .mesh import load_mesh
+from .formats import file_ext
+from .mesh import MeshError, cluster, decimate, load_mesh
+from .threemf import ThreeMFError, read_scene
 
 MAX_FACES = 1_500_000
 MIN_EDGE_MM = 1.0
 # Bump when the refinement changes, so old copies aren't matched against new triangle numbers.
-VERSION = 1
+VERSION = 2
+# Denser objects are shown as a lighter copy, so that a big plate stays usable in a browser.
+DISPLAY_FACES = 300_000
+CACHE_LIMIT = 30 * 1024**3
 
 # OrcaSlicer's triangle paint values, as written in a 3MF's paint_supports attribute.
 ENFORCER = "4"
@@ -72,22 +79,121 @@ def refine(vertices: np.ndarray, faces: np.ndarray, max_edge: float, max_faces: 
         f = np.vstack(parts)[np.argsort(np.concatenate(parents), kind="stable")]
 
 
-def editor_mesh_path(source: Path, file_id: int) -> Path:
-    """The refined copy of a model file as a binary STL, built once and then kept in the cache."""
+def _base(source: Path, file_id: int) -> str:
     stat = source.stat()
-    out = settings.cache_dir / f"editor-{file_id}-{stat.st_size}-{int(stat.st_mtime)}-v{VERSION}.stl"
-    if out.exists():
-        return out
-    for old in settings.cache_dir.glob(f"editor-{file_id}-*.stl"):
-        old.unlink(missing_ok=True)
-    mesh = load_mesh(source)
+    return f"editor-{file_id}-{stat.st_size}-{int(stat.st_mtime)}-v{VERSION}"
+
+
+def _store_object(base: str, number: int, vertices: np.ndarray, faces: np.ndarray) -> int:
+    """Save an object's refined mesh for slicing, and a lighter copy to show if it's very dense."""
+    mesh = trimesh.Trimesh(vertices, faces, process=False)
     mesh.merge_vertices()
     diagonal = float(np.linalg.norm(mesh.extents))
     v, f = refine(mesh.vertices, mesh.faces, max(MIN_EDGE_MM, diagonal / 120))
+    full = trimesh.Trimesh(v, f, process=False)
+    _write_stl(full, settings.cache_dir / f"{base}-{number}.stl")
+    if len(f) > DISPLAY_FACES:
+        # Quadric decimation keeps the shape best, but needs memory the densest objects can't spare.
+        light = decimate(full, DISPLAY_FACES) if len(f) < 8_000_000 else cluster(full, DISPLAY_FACES)
+        _write_stl(light, settings.cache_dir / f"{base}-{number}-light.stl")
+    return len(f)
+
+
+def _write_stl(mesh: trimesh.Trimesh, out: Path) -> None:
     tmp = out.with_suffix(".tmp")
-    trimesh.Trimesh(v, f, process=False).export(tmp, file_type="stl")
+    mesh.export(tmp, file_type="stl")
     tmp.replace(out)
-    return out
+
+
+_locks: dict[int, threading.Lock] = {}
+_locks_guard = threading.Lock()
+
+
+def _trim_cache() -> None:
+    """Forget the least recently opened files' meshes once they take up too much disk."""
+    groups: dict[str, list[Path]] = {}
+    for path in settings.cache_dir.glob("editor-*"):
+        groups.setdefault(path.name.split("-")[1], []).append(path)
+    newest_first = sorted(groups.values(), key=lambda files: -max(f.stat().st_mtime for f in files))
+    total = 0
+    for files in newest_first:
+        total += sum(f.stat().st_size for f in files)
+        if total > CACHE_LIMIT:
+            for f in files:
+                f.unlink(missing_ok=True)
+
+
+def editor_scene(source: Path, file_id: int) -> dict:
+    """A file's plates, objects and their placement, built once and then kept in the cache."""
+    with _locks_guard:
+        lock = _locks.setdefault(file_id, threading.Lock())
+    # A big project takes minutes, so a page reload meanwhile waits rather than starting again.
+    with lock:
+        return _build_scene(source, file_id)
+
+
+def _build_scene(source: Path, file_id: int) -> dict:
+    base = _base(source, file_id)
+    index = settings.cache_dir / f"{base}.json"
+    if index.exists():
+        index.touch()
+        return json.loads(index.read_text())
+    for old in settings.cache_dir.glob(f"editor-{file_id}-*"):
+        old.unlink(missing_ok=True)
+    if file_ext(source.name) == "3mf":
+        try:
+            scene = read_scene(source, lambda number, v, f: _store_object(base, number, v, f))
+        except ThreeMFError as e:
+            raise MeshError(str(e)) from e
+    else:
+        mesh = load_mesh(source)
+        _store_object(base, 0, mesh.vertices, mesh.faces)
+        scene = {"plates": [{"index": 1, "name": ""}], "objects": [{"object": 0, "name": source.name}], "items": [{"object": 0, "plate": 1, "matrix": None}]}
+    tmp = index.with_suffix(".tmp")
+    tmp.write_text(json.dumps(scene))
+    tmp.replace(index)
+    _trim_cache()
+    return scene
+
+
+def object_paths(source: Path, file_id: int, number: int) -> tuple[Path, Path]:
+    """An object's mesh for slicing and the one to show, which are the same unless it's dense."""
+    editor_scene(source, file_id)
+    base = _base(source, file_id)
+    full = settings.cache_dir / f"{base}-{number}.stl"
+    if not full.exists():
+        raise MeshError("That object isn't in this file")
+    light = settings.cache_dir / f"{base}-{number}-light.stl"
+    return full, light if light.exists() else full
+
+
+def _load_stl(path: Path) -> trimesh.Trimesh:
+    mesh = trimesh.load(path, file_type="stl", process=False)
+    mesh.merge_vertices()
+    return mesh
+
+
+def transfer_paint(light: trimesh.Trimesh, full: trimesh.Trimesh, painted: np.ndarray) -> np.ndarray:
+    """Painted triangles of a lighter copy, as triangles of the full mesh: those in a small cell
+    around painted ones and facing the same way."""
+    if not len(painted):
+        return painted
+    size = max(float(np.sqrt(np.median(light.area_faces[painted]))) * 1.5, 1e-3)
+    origin = light.triangles_center[painted].min(axis=0)
+    cells = np.floor((light.triangles_center[painted] - origin) / size).astype(np.int64)
+    normals = {}
+    for cell, normal in zip(map(tuple, cells.tolist()), light.face_normals[painted]):
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                for dz in (-1, 0, 1):
+                    key = (cell[0] + dx, cell[1] + dy, cell[2] + dz)
+                    normals[key] = normals.get(key, 0) + normal
+    centres = np.floor((full.triangles_center - origin) / size).astype(np.int64)
+    out = [
+        i for i, (cell, normal) in enumerate(zip(map(tuple, centres.tolist()), full.face_normals))
+        if cell in normals and float(np.dot(normals[cell], normal)) > 0
+    ]
+    return np.asarray(out, dtype=np.int64)
 
 
 def expand_runs(runs: list[int], face_count: int) -> np.ndarray:
@@ -110,7 +216,8 @@ def _transform(matrix: list[float]) -> str:
 
 
 def write_project(items: list[dict], out: Path) -> None:
-    """Write placed meshes to a 3MF. Each item is {path, matrix, enforce, block}.
+    """Write placed meshes to a 3MF. Each item is {path, light, matrix, enforce, block}, where
+    painting is in triangles of `light`, the mesh the editor showed, if that differs from `path`.
 
     Leaving out Bambu Studio's application tag on purpose: OrcaSlicer then reads this as a plain
     3MF, whereas a Bambu tagged project with no plate settings crashes it.
@@ -130,10 +237,18 @@ def write_project(items: list[dict], out: Path) -> None:
             w('<?xml version="1.0" encoding="UTF-8"?>\n<model unit="millimeter" xml:lang="en-US" '
               'xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02"><resources>')
             for n, item in enumerate(items, 1):
-                mesh = trimesh.load(item["path"], file_type="stl", process=False)
-                mesh.merge_vertices()
-                paint = dict.fromkeys(expand_runs(item.get("enforce") or [], len(mesh.faces)).tolist(), ENFORCER)
-                paint.update(dict.fromkeys(expand_runs(item.get("block") or [], len(mesh.faces)).tolist(), BLOCKER))
+                mesh = _load_stl(item["path"])
+                enforce, block = item.get("enforce") or [], item.get("block") or []
+                shown = item.get("light")
+                if shown and shown != item["path"] and (enforce or block):
+                    light = _load_stl(shown)
+                    enforced = transfer_paint(light, mesh, expand_runs(enforce, len(light.faces)))
+                    blocked = transfer_paint(light, mesh, expand_runs(block, len(light.faces)))
+                else:
+                    enforced = expand_runs(enforce, len(mesh.faces))
+                    blocked = expand_runs(block, len(mesh.faces))
+                paint = dict.fromkeys(enforced.tolist(), ENFORCER)
+                paint.update(dict.fromkeys(blocked.tolist(), BLOCKER))
                 w(f'<object id="{n}" type="model" name="{escape(str(item.get("name") or n), {chr(34): "&quot;"})}"><mesh><vertices>')
                 w("".join(f'<vertex x="{x:.5f}" y="{y:.5f}" z="{z_:.5f}"/>' for x, y, z_ in mesh.vertices.tolist()))
                 w("</vertices><triangles>")
