@@ -31,10 +31,44 @@ class _Object:
     # (file or None for same file, object id, 4x4 transform)
     comps: list = field(default_factory=list)
     name: str = ""
+    # Painted support triangles: number -> 1 for enforcer, 2 for blocker.
+    paint: dict = field(default_factory=dict)
 
 
 def _local(tag: str) -> str:
     return tag.rsplit("}", 1)[-1]
+
+
+def decode_paint(text: str) -> int:
+    """A triangle's paint_supports value as 0 (none), 1 (enforcer) or 2 (blocker).
+
+    The value is a tree of how the triangle was split, written as hex digits in reverse order. Each
+    digit's low two bits count split sides. With none it's a leaf, and its high two bits are the
+    paint. This editor paints whole triangles, so a split one takes on what most of it has. An
+    enforcer counts from a smaller share than a blocker, as a missing support is the worse mistake.
+    """
+    nibbles = [int(c, 16) for c in reversed(text) if c in "0123456789abcdefABCDEF"]
+    if not nibbles:
+        return 0
+    at = 0
+    shares = [0.0, 0.0, 0.0]
+    stack = [1.0]
+    while stack and at < len(nibbles):
+        share = stack.pop()
+        code = nibbles[at]
+        at += 1
+        split = code & 0b11
+        if split:
+            stack.extend([share / (split + 1)] * (split + 1))
+            continue
+        state = code >> 2
+        if state == 3:  # the value carries on in the next digit, for filament numbers
+            at += 1
+        elif state:
+            shares[state] += share
+    if shares[1] >= 0.2 and shares[1] >= shares[2]:
+        return 1
+    return 2 if shares[2] >= 0.5 else 0
 
 
 def _matrix(attr: str | None) -> np.ndarray:
@@ -67,6 +101,7 @@ def _parse(z: zipfile.ZipFile, name: str) -> tuple[dict[str, _Object], list]:
     objects: dict[str, _Object] = {}
     items: list = []
     cur: _Object | None = None
+    decodes: dict[str, int] = {}
     with z.open(name) as fh:
         for event, el in etree.iterparse(fh, events=("start", "end"), huge_tree=True):
             tag = _local(el.tag)
@@ -80,6 +115,13 @@ def _parse(z: zipfile.ZipFile, name: str) -> tuple[dict[str, _Object], list]:
                 cur.verts.extend((float(a["x"]), float(a["y"]), float(a["z"])))
             elif tag == "triangle" and cur is not None:
                 a = el.attrib
+                painted = a.get("paint_supports")
+                if painted:
+                    code = decodes.get(painted)
+                    if code is None:
+                        code = decodes[painted] = decode_paint(painted)
+                    if code:
+                        cur.paint[len(cur.tris) // 3] = code
                 cur.tris.extend((int(a["v1"]), int(a["v2"]), int(a["v3"])))
             elif tag == "component" and cur is not None:
                 path = el.get(P_PATH)
@@ -130,9 +172,11 @@ def _plates(z: zipfile.ZipFile) -> tuple[list[dict], dict[tuple[str, int], int],
 def read_scene(path: Path, write_object) -> dict:
     """Read a 3MF as separate objects, placed on their plates.
 
-    write_object(number, vertices, faces) receives each object once, in its own coordinates, so
-    big projects needn't all be in memory at once. Returns {plates, objects, items}, where an item
-    is a copy of an object on a plate, and its matrix is 16 numbers by column.
+    write_object(number, vertices, faces, paint) receives each object once, in its own
+    coordinates, so big projects needn't all be in memory at once. paint has a value per face, as
+    from decode_paint, and write_object returns what to record about the object. Returns {plates,
+    objects, items}, where an item is a copy of an object on a plate, and its matrix is 16 numbers
+    by column.
     """
     try:
         z = zipfile.ZipFile(path)
@@ -164,6 +208,7 @@ def read_scene(path: Path, write_object) -> dict:
             if key not in numbers:
                 out_v: list[np.ndarray] = []
                 out_f: list[np.ndarray] = []
+                out_p: list[tuple[int, dict]] = []
                 count = [0, 0]
 
                 def emit(name: str, object_id: str, t: np.ndarray, depth: int = 0) -> None:
@@ -177,6 +222,8 @@ def read_scene(path: Path, write_object) -> dict:
                         f = np.frombuffer(obj.tris, dtype=np.int64 if obj.tris.itemsize == 8 else np.int32).reshape(-1, 3)
                         out_v.append(v @ t[:3, :3] + t[3, :3])
                         out_f.append(f.astype(np.int64) + count[0])
+                        if obj.paint:
+                            out_p.append((count[1], obj.paint))
                         count[0] += len(v)
                         count[1] += len(f)
                         if count[1] > MAX_FACES:
@@ -190,9 +237,13 @@ def read_scene(path: Path, write_object) -> dict:
                 number = len(objects)
                 numbers[key] = number
                 top = objects_in(key[0]).get(oid)
-                objects.append({"object": number, "name": names.get(oid) or (top.name if top else "") or f"Object {number + 1}"})
-                write_object(number, np.concatenate(out_v), np.concatenate(out_f))
-                del out_v, out_f
+                paint = np.zeros(count[1], dtype=np.uint8)
+                for start, painted in out_p:
+                    for face, code in painted.items():
+                        paint[start + face] = code
+                recorded = write_object(number, np.concatenate(out_v), np.concatenate(out_f), paint) or {}
+                objects.append({"object": number, "name": names.get(oid) or (top.name if top else "") or f"Object {number + 1}", **recorded})
+                del out_v, out_f, out_p
                 # Slicers keep each object in its own file, which isn't needed again.
                 for name in [n for n in files if n != root]:
                     del files[name]

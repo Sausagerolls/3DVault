@@ -11,9 +11,11 @@ import { FEATURES, parseToolpaths, type ToolpathData } from "../viewer/Toolpaths
 type Settings = { process: string; filament: string; bed: string };
 type EditorScene = {
   plates: { index: number; name: string }[];
-  objects: { object: number; name: string }[];
+  objects: { object: number; name: string; enforce?: number[]; block?: number[] }[];
   items: { object: number; plate: number; matrix: number[] | null }[];
+  settings?: ProjectSettings | null;
 };
+type ProjectSettings = { process: string; printer: string; filament: string; bed: string; values: Record<string, string> };
 
 const TOOLS: { id: Tool; label: string; title: string }[] = [
   { id: "select", label: "Select", title: "Choose a part and turn the view" },
@@ -64,6 +66,7 @@ export default function PreparePage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(0);
   const [reading, setReading] = useState(0);
+  const [projectTick, setProjectTick] = useState(0);
   const platesRef = useRef<{ index: number; name: string }[]>([{ index: 1, name: "" }]);
   const plateRef = useRef(1);
   const [task, setTask] = useState<SliceTask | null>(null);
@@ -77,7 +80,10 @@ export default function PreparePage() {
   const [plate, setPlate] = useState(1);
   const [partMenu, setPartMenu] = useState<{ part: PlateObject; x: number; y: number } | null>(null);
   // Copies on plates not looked at yet. Big projects only load what's being looked at.
-  const waiting = useRef(new Map<number, { fileId: number; object: number; name: string; matrix: number[] | null }[]>());
+  const waiting = useRef(new Map<number, { fileId: number; object: number; name: string; matrix: number[] | null; enforce?: number[]; block?: number[] }[]>());
+  // A project's settings, until the presets they're compared with have loaded.
+  const project = useRef<ProjectSettings | null>(null);
+  const projectValues = useRef<{ process: string; values: Record<string, string>; note: string } | null>(null);
   const editor = editorRef.current;
   const selected = editor?.selected ?? null;
 
@@ -114,7 +120,7 @@ export default function PreparePage() {
     setLoading((n) => n + 1);
     try {
       const added: PlateObject[] = [];
-      for (const c of copies) added.push(await e.add(c.fileId, c.object, c.name, index, wasEmpty ? c.matrix : null));
+      for (const c of copies) added.push(await e.add(c.fileId, c.object, c.name, index, wasEmpty ? c.matrix : null, c));
       if (wasEmpty) e.centreGroup(added.filter((_, i) => copies[i].matrix));
       if (added.length === 1 && index === plateRef.current) e.select(added[0]);
     } catch (err) {
@@ -130,6 +136,8 @@ export default function PreparePage() {
     setReading((n) => n + 1);
     try {
       const scene = await api<EditorScene>(`/files/${fileId}/editor-scene`);
+      if (first && scene.settings) project.current = scene.settings;
+      setProjectTick((n) => n + 1);
       // A project with its own plates keeps them: first in an empty editor, else after the others.
       const offset = scene.plates.length > 1 && !first ? Math.max(...platesRef.current.map((p) => p.index)) : 0;
       const target = (index: number) => (scene.plates.length > 1 ? index + offset : plateRef.current);
@@ -141,7 +149,8 @@ export default function PreparePage() {
       for (const item of scene.items) {
         const index = target(item.plate);
         const list = waiting.current.get(index) ?? [];
-        list.push({ fileId, object: item.object, name: scene.objects[item.object]?.name ?? f.rel_path, matrix: item.matrix });
+        const obj = scene.objects[item.object];
+        list.push({ fileId, object: item.object, name: obj?.name ?? f.rel_path, matrix: item.matrix, enforce: obj?.enforce, block: obj?.block });
         waiting.current.set(index, list);
       }
       const start = scene.plates.length > 1 ? target(scene.plates[0].index) : plateRef.current;
@@ -215,6 +224,38 @@ export default function PreparePage() {
     queryFn: () => api<Record<string, string>>(`/slicer/process-values?name=${encodeURIComponent(settings!.process)}`),
     enabled: !!settings?.process,
   });
+  // Start from what an opened project was set to, on this printer's presets where they match.
+  useEffect(() => {
+    const p = project.current;
+    const o = options.data;
+    if (!p || !o || !settings) return;
+    project.current = null;
+    const process = o.processes.some((x) => x.name === p.process) ? p.process : settings.process;
+    setSettings({
+      process,
+      filament: o.filaments.some((x) => x.name === p.filament) ? p.filament : settings.filament,
+      bed: o.bed_types.includes(p.bed) ? p.bed : settings.bed,
+    });
+    // Line widths suit one nozzle size, so a project for another keeps this printer's.
+    const nozzle = (name: string) => /([\d.]+) nozzle/.exec(name)?.[1];
+    const otherNozzle = !!nozzle(p.printer) && !!nozzle(o.printer) && nozzle(p.printer) !== nozzle(o.printer);
+    const values = Object.fromEntries(Object.entries(p.values).filter(([key]) => !(otherNozzle && key.endsWith("line_width"))));
+    const other = p.printer && p.printer !== o.printer
+      ? ` It was made for ${p.printer}, so check them for this printer.${otherNozzle ? " Line widths stay as this printer's." : ""}`
+      : "";
+    projectValues.current = { process, values, note: other };
+  }, [options.data, projectTick, !!settings]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const p = projectValues.current;
+    if (!p || !preset.data || settings?.process !== p.process) return;
+    projectValues.current = null;
+    const differ: Record<string, string> = {};
+    for (const [key, v] of Object.entries(p.values)) if (preset.data[key] !== v) differ[key] = v;
+    setChanges(differ);
+    const n = Object.keys(differ).length;
+    if (n) toast(`Kept this project's settings: ${n} differ from the preset.${p.note}`);
+  }, [preset.data, settings?.process]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const value = (key: string): string => changes[key] ?? preset.data?.[key] ?? "";
   valueRef.current = value;
   const setValue = (key: string, v: string) =>
@@ -288,8 +329,7 @@ export default function PreparePage() {
   const slice = async () => {
     if (!editor || !settings || machineId == null) return;
     const layout = editor.layout();
-    // Painted supports need supports switched on, even if they were turned off afterwards.
-    const processValues = { ...changes, ...(editor.painted ? supportsForPainting(value) : {}) };
+    const processValues = changes;
     try {
       let t = await api<SliceTask>("/slices", {
         method: "POST",

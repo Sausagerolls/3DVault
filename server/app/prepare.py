@@ -15,6 +15,7 @@ from xml.sax.saxutils import escape
 import numpy as np
 import trimesh
 
+from . import slicer
 from .config import settings
 from .formats import file_ext
 from .mesh import MeshError, cluster, decimate, load_mesh
@@ -23,7 +24,7 @@ from .threemf import ThreeMFError, read_scene
 MAX_FACES = 1_500_000
 MIN_EDGE_MM = 1.0
 # Bump when the refinement changes, so old copies aren't matched against new triangle numbers.
-VERSION = 2
+VERSION = 3
 # Denser objects are shown as a lighter copy, so that a big plate stays usable in a browser.
 DISPLAY_FACES = 300_000
 CACHE_LIMIT = 30 * 1024**3
@@ -34,23 +35,28 @@ BLOCKER = "8"
 
 
 def refine(vertices: np.ndarray, faces: np.ndarray, max_edge: float, max_faces: int = MAX_FACES) -> tuple[np.ndarray, np.ndarray]:
+    return refine_with_paint(vertices, faces, np.zeros(len(faces), dtype=np.uint8), max_edge, max_faces)[:2]
+
+
+def refine_with_paint(vertices: np.ndarray, faces: np.ndarray, paint: np.ndarray, max_edge: float, max_faces: int = MAX_FACES) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Split edges longer than max_edge at their middle until none are left, or max_faces is near.
+    New triangles take on the paint of the triangle they came from.
 
     A split is decided per edge, so both triangles sharing an edge agree on it. That keeps a
     closed mesh closed, without the cracks that splitting whole triangles leaves.
     """
-    v, f = np.asarray(vertices, dtype=np.float64), np.asarray(faces, dtype=np.int64)
+    v, f, p = np.asarray(vertices, dtype=np.float64), np.asarray(faces, dtype=np.int64), np.asarray(paint, dtype=np.uint8)
     while True:
         corner_edges = np.sort(f[:, [0, 1, 1, 2, 2, 0]].reshape(-1, 2), axis=1)
         edges, inverse = np.unique(corner_edges, axis=0, return_inverse=True)
         inverse = inverse.reshape(-1, 3)
         long = np.linalg.norm(v[edges[:, 0]] - v[edges[:, 1]], axis=1) > max_edge
         if not long.any():
-            return v, f
+            return v, f, p
         split = long[inverse]
         # One split adds one triangle, so this is the exact size of the next round.
         if len(f) + int(split.sum()) > max_faces:
-            return v, f
+            return v, f, p
         mid_of_edge = np.full(len(edges), -1, dtype=np.int64)
         mid_of_edge[long] = len(v) + np.arange(int(long.sum()))
         v = np.vstack([v, (v[edges[long, 0]] + v[edges[long, 1]]) / 2])
@@ -71,12 +77,15 @@ def refine(vertices: np.ndarray, faces: np.ndarray, max_edge: float, max_faces: 
         # Keep children next to each other in the order of their parents, so the result only
         # depends on the input.
         parents, parts = [], []
-        for p, tris in layouts.items():
-            pick = np.where(pattern == p)[0]
+        for kind, tris in layouts.items():
+            pick = np.where(pattern == kind)[0]
             for t in tris:
                 parents.append(pick)
                 parts.append(np.column_stack([t[0][pick], t[1][pick], t[2][pick]]))
-        f = np.vstack(parts)[np.argsort(np.concatenate(parents), kind="stable")]
+        all_parents = np.concatenate(parents)
+        order = np.argsort(all_parents, kind="stable")
+        f = np.vstack(parts)[order]
+        p = p[all_parents[order]]
 
 
 def _base(source: Path, file_id: int) -> str:
@@ -84,19 +93,36 @@ def _base(source: Path, file_id: int) -> str:
     return f"editor-{file_id}-{stat.st_size}-{int(stat.st_mtime)}-v{VERSION}"
 
 
-def _store_object(base: str, number: int, vertices: np.ndarray, faces: np.ndarray) -> int:
-    """Save an object's refined mesh for slicing, and a lighter copy to show if it's very dense."""
+def _runs(faces: np.ndarray) -> list[int]:
+    """Sorted triangle numbers as [start, count, start, count, ...]."""
+    out: list[int] = []
+    for face in faces.tolist():
+        if out and out[-2] + out[-1] == face:
+            out[-1] += 1
+        else:
+            out += [face, 1]
+    return out
+
+
+def _store_object(base: str, number: int, vertices: np.ndarray, faces: np.ndarray, paint: np.ndarray | None = None) -> dict:
+    """Save an object's refined mesh for slicing, and a lighter copy to show if it's very dense.
+    Returns any support painting the file had, in triangles of the mesh that's shown."""
     mesh = trimesh.Trimesh(vertices, faces, process=False)
     mesh.merge_vertices()
     diagonal = float(np.linalg.norm(mesh.extents))
-    v, f = refine(mesh.vertices, mesh.faces, max(MIN_EDGE_MM, diagonal / 120))
+    if paint is None:
+        paint = np.zeros(len(faces), dtype=np.uint8)
+    v, f, p = refine_with_paint(mesh.vertices, mesh.faces, paint, max(MIN_EDGE_MM, diagonal / 120))
     full = trimesh.Trimesh(v, f, process=False)
+    enforced, blocked = np.flatnonzero(p == 1), np.flatnonzero(p == 2)
     _write_stl(full, settings.cache_dir / f"{base}-{number}.stl")
     if len(f) > DISPLAY_FACES:
         # Quadric decimation keeps the shape best, but needs memory the densest objects can't spare.
         light = decimate(full, DISPLAY_FACES) if len(f) < 8_000_000 else cluster(full, DISPLAY_FACES)
         _write_stl(light, settings.cache_dir / f"{base}-{number}-light.stl")
-    return len(f)
+        enforced = np.unique(transfer_paint(full, light, enforced))
+        blocked = np.unique(transfer_paint(full, light, blocked))
+    return {"enforce": _runs(enforced), "block": _runs(blocked)}
 
 
 def _write_stl(mesh: trimesh.Trimesh, out: Path) -> None:
@@ -142,7 +168,8 @@ def _build_scene(source: Path, file_id: int) -> dict:
         old.unlink(missing_ok=True)
     if file_ext(source.name) == "3mf":
         try:
-            scene = read_scene(source, lambda number, v, f: _store_object(base, number, v, f))
+            scene = read_scene(source, lambda number, v, f, paint: _store_object(base, number, v, f, paint))
+            scene["settings"] = project_settings(source)
         except ThreeMFError as e:
             raise MeshError(str(e)) from e
     else:
@@ -154,6 +181,33 @@ def _build_scene(source: Path, file_id: int) -> dict:
     tmp.replace(index)
     _trim_cache()
     return scene
+
+
+def project_settings(source: Path) -> dict | None:
+    """The process settings saved in a Bambu or Orca project, and the presets they were made with."""
+    try:
+        with zipfile.ZipFile(source) as z:
+            config = json.loads(z.read("Metadata/project_settings.config"))
+    except (KeyError, ValueError, zipfile.BadZipFile):
+        return None
+    first = lambda v: (v[0] if v else None) if isinstance(v, list) else v
+    values = {}
+    for key in (slicer.process_schema() or {"options": {}})["options"]:
+        value = first(config.get(key))
+        if value is None or value == "":
+            continue
+        # A setting from another slicer version this one doesn't accept is left out.
+        try:
+            values.update(slicer.clean_process_values({key: value}))
+        except ValueError:
+            pass
+    return {
+        "process": str(first(config.get("print_settings_id")) or ""),
+        "printer": str(first(config.get("printer_settings_id")) or ""),
+        "filament": str(first(config.get("filament_settings_id")) or ""),
+        "bed": str(first(config.get("curr_bed_type")) or ""),
+        "values": values,
+    }
 
 
 def object_paths(source: Path, file_id: int, number: int) -> tuple[Path, Path]:

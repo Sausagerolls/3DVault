@@ -95,12 +95,38 @@ def test_scene_splits_objects_plates_and_copies():
             z.writestr("3D/3dmodel.model", model)
             z.writestr("Metadata/model_settings.config", settings_xml)
         written = []
-        scene = read_scene(path, lambda n, v, f: written.append((n, len(f))))
+        scene = read_scene(path, lambda n, v, f, paint: written.append((n, len(f))))
     assert written == [(0, 12), (1, 12)]
     assert scene["plates"] == [{"index": 1, "name": "First"}, {"index": 2, "name": ""}]
     assert [o["name"] for o in scene["objects"]] == ["Named", "Plain"]
     assert [(i["object"], i["plate"]) for i in scene["items"]] == [(0, 1), (0, 2), (1, 2)]
     assert scene["items"][0]["matrix"][12:15] == [5, 6, 7]
+
+
+def test_decode_paint():
+    from app.threemf import decode_paint
+
+    assert decode_paint("4") == 1
+    assert decode_paint("8") == 2
+    assert decode_paint("0") == 0
+    # Split into two (last digit, read first, is 1): half blocker counts, half enforcer wins.
+    assert decode_paint("081") == 2
+    assert decode_paint("041") == 1
+    # Split into four, one blocker: not enough. One enforcer out of four: enough.
+    assert decode_paint("00083") == 0
+    assert decode_paint("00043") == 1
+
+
+def test_refine_carries_paint():
+    box = trimesh.creation.box((40, 40, 40))
+    paint = np.zeros(len(box.faces), dtype=np.uint8)
+    paint[3] = 2
+    v, f, p = prepare.refine_with_paint(box.vertices, box.faces, paint, 5.0)
+    assert len(f) > 100 and len(p) == len(f)
+    painted = trimesh.Trimesh(v, f, process=False).triangles_center[p == 2]
+    original = box.triangles[3]
+    assert (np.abs(painted - original.mean(axis=0)).max(axis=0) <= np.ptp(original, axis=0) + 1e-6).all()
+    assert np.isclose(trimesh.Trimesh(v, f, process=False).area_faces[p == 2].sum(), box.area_faces[3])
 
 
 if __name__ == "__main__":

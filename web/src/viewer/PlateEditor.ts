@@ -285,9 +285,15 @@ export class PlateEditor {
    * Add a copy of an object to a plate. With a matrix it goes where its project had it, which
    * place() can then shift as a group. Without one it finds a free spot on the plate.
    */
-  async add(fileId: number, object: number, name: string, plate: number, matrix?: number[] | null): Promise<PlateObject> {
+  async add(fileId: number, object: number, name: string, plate: number, matrix?: number[] | null, painted?: { enforce?: number[]; block?: number[] }): Promise<PlateObject> {
     const { geometry, centre, faces } = await this.load(fileId, object);
-    const o = this.place(fileId, object, plate, name, this.shareShape(geometry), centre, new Uint8Array(faces));
+    const paint = new Uint8Array(faces);
+    const fill = (runs: number[] | undefined, value: number) => {
+      for (let i = 0; runs && i + 1 < runs.length; i += 2) paint.fill(value, runs[i], runs[i] + runs[i + 1]);
+    };
+    fill(painted?.enforce, ENFORCE);
+    fill(painted?.block, BLOCK);
+    const o = this.place(fileId, object, plate, name, this.shareShape(geometry), centre, paint);
     if (matrix) {
       new THREE.Matrix4().fromArray(matrix).multiply(new THREE.Matrix4().makeTranslation(centre.x, centre.y, centre.z))
         .decompose(o.mesh.position, o.mesh.quaternion, o.mesh.scale);
