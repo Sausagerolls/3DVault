@@ -29,6 +29,7 @@ export default function Settings() {
         {tab === "Printers" && (
           <>
             {user.role === "admin" && <Machines />}
+            <SendFromSlicer />
             {user.role === "admin" && <PrintAlerts />}
             <Printers />
           </>
@@ -521,6 +522,48 @@ const NOTIFIERS: Record<string, { label: string; url?: string; topic?: boolean; 
   webhook: { label: "Webhook (Home Assistant and others)", url: "Webhook URL", secret: "Bearer token (optional)" },
 };
 const EVENT_LABELS: Record<string, string> = { started: "Started", finished: "Finished", failed: "Failed", paused: "Paused" };
+
+/** How to send prints here from OrcaSlicer or Bambu Studio, which treat 3DVault as OctoPrint. */
+function SendFromSlicer() {
+  const machines = useQuery({ queryKey: ["machines"], queryFn: () => api<Machine[]>("/machines") });
+  const inv = useInvalidate();
+  const run = useRun();
+  const [key, setKey] = useState<string | null>(null);
+  if (!machines.data?.length) return null;
+  return (
+    <section className="panel col">
+      <h2>Send from a slicer</h2>
+      <p className="dim" style={{ margin: 0 }}>
+        OrcaSlicer can send prints to the queue here. In the printer's connection settings choose OctoPrint as the host type, then enter the host address below and an API key. For a Bambu Lab printer, first turn on “Use 3rd-party print host” in its printer settings. Bambu Studio only offers this for third-party printer presets.
+      </p>
+      {machines.data.map((m) => (
+        <div key={m.id} className="row" style={{ gap: 8 }}>
+          <span className="grow ellipsis">{m.name}</span>
+          <code style={{ userSelect: "all" }}>{`${window.location.origin}/print-host/${m.id}`}</code>
+        </div>
+      ))}
+      {key ? (
+        <div className="col" style={{ gap: 4 }}>
+          <span className="dim">API key. Copy it now, as it isn't shown again.</span>
+          <code style={{ userSelect: "all", overflowWrap: "anywhere" }}>{key}</code>
+        </div>
+      ) : (
+        <button
+          style={{ alignSelf: "flex-start" }}
+          onClick={() =>
+            run(async () => {
+              const r = await api<{ token: string }>("/tokens?name=Slicer", { method: "POST" });
+              setKey(r.token);
+              inv("tokens");
+            })
+          }
+        >
+          Create API key
+        </button>
+      )}
+    </section>
+  );
+}
 
 function PrintAlerts() {
   const cfg = useQuery({ queryKey: ["notifier"], queryFn: () => api<NotifierCfg>("/notifier") });

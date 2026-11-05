@@ -49,7 +49,8 @@ def _raw_token(request: Request) -> str | None:
     header = request.headers.get("authorization", "")
     if header.lower().startswith("bearer "):
         return header[7:].strip()
-    return request.cookies.get(COOKIE_NAME)
+    # Desktop slicers send their print host key in this header.
+    return request.headers.get("x-api-key") or request.cookies.get(COOKIE_NAME)
 
 
 def current_user(request: Request, db: Session = Depends(get_db)) -> User:

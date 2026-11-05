@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import api_auth, api_misc, api_models, api_print
+from . import api_auth, api_misc, api_models, api_print, api_printhost
 from .config import settings
 from .db import create_schema, init_engine
 from .printing import manager
@@ -30,6 +30,7 @@ app.include_router(api_auth.router)
 app.include_router(api_models.router)
 app.include_router(api_misc.router)
 app.include_router(api_print.router)
+app.include_router(api_printhost.router)
 
 
 @app.get("/api/health")
