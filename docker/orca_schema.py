@@ -12,6 +12,9 @@ import sys
 
 # Never offered: post_process runs commands on the server, and filename_format names output files.
 BLOCKED = {"post_process", "filename_format"}
+# Slicing from the editor uses one filament for now, so nothing that picks between several.
+BLOCKED_PAGES = {"Multimaterial"}
+BLOCKED_GROUPS = {"Support filament"}
 
 VECTOR_TYPES = {"coFloats", "coInts", "coBools", "coPercents", "coFloatsOrPercents", "coStrings", "coPoints", "coEnums"}
 TYPES = {
@@ -122,8 +125,8 @@ def parse_pages(source: str, options: dict) -> list[dict]:
             seen.add(key)
             pages[-1]["groups"][-1]["options"].append(key)
     for page in pages:
-        page["groups"] = [g for g in page["groups"] if g["options"]]
-    return [p for p in pages if p["groups"]]
+        page["groups"] = [g for g in page["groups"] if g["options"] and g["title"] not in BLOCKED_GROUPS]
+    return [p for p in pages if p["groups"] and p["title"] not in BLOCKED_PAGES]
 
 
 def main() -> None:
