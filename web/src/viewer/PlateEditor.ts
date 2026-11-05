@@ -94,6 +94,7 @@ export class PlateEditor {
   private painting = false;
   private downAt: { x: number; y: number } | null = null;
   private renderScheduled = false;
+  private viewMoved = false;
 
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -113,6 +114,7 @@ export class PlateEditor {
     this.controls = new OrbitControls(this.camera, canvas);
     this.controls.enableDamping = false;
     this.controls.addEventListener("change", () => this.render());
+    this.controls.addEventListener("start", () => { this.viewMoved = true; });
 
     this.transform = new TransformControls(this.camera, canvas);
     this.transform.showZ = false;
@@ -197,7 +199,8 @@ export class PlateEditor {
   home(): void {
     const { x, y, z } = this.volume;
     this.controls.target.set(x / 2, y / 2, Math.min(z, x) * 0.15);
-    const d = Math.max(x, y, z) * 2.3;
+    // A tall, narrow view has to stand further back to fit the plate's width.
+    const d = (Math.max(x, y, z) * 2.3) / Math.min(1, this.camera.aspect / 1.2);
     this.camera.position.set(x / 2, y / 2 - d * 0.82, d * 0.62);
     this.camera.far = d * 8;
     this.camera.updateProjectionMatrix();
@@ -589,6 +592,8 @@ export class PlateEditor {
     this.renderer.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    // The first sizes come through as the page settles, before anyone has turned the view.
+    if (!this.viewMoved) this.home();
     this.render();
   }
 

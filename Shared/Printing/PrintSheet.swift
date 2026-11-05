@@ -44,6 +44,31 @@ struct PrintSheet: View {
     @State private var slicing: SliceTask?
     @State private var slicedFileId: Int?
     @State private var showPreview = false
+    @State private var showPrepare = false
+
+    /// The 3D editor needs a bigger screen than an iPhone's.
+    private var canPrepare: Bool {
+        #if os(iOS)
+        UIDevice.current.userInterfaceIdiom == .pad
+        #else
+        true
+        #endif
+    }
+
+    private var sliceFileIds: [Int] {
+        source == "all" ? meshParts.map(\.id) : selectedFile.map { [$0.id] } ?? []
+    }
+
+    @ViewBuilder private var prepareEditor: some View {
+        if let client = state.client, let machineId {
+            PrepareView(client: client, modelId: model.id, fileIds: sliceFileIds, machineId: machineId) { fileId in
+                showPrepare = false
+                useSliced(fileId)
+            } onClose: {
+                showPrepare = false
+            }
+        }
+    }
 
     private var files: [VaultFile] { printableFiles(model) }
     private var meshParts: [VaultFile] { files.filter { ["stl", "obj", "step", "stp", "amf"].contains($0.ext) } }
@@ -110,10 +135,23 @@ struct PrintSheet: View {
             .navigationDestination(isPresented: $showPreview) {
                 if let fid = printFileId { LayerPreview(fileId: fid, plate: plate, bed: machine?.bed) }
             }
+            #if os(iOS)
+            .fullScreenCover(isPresented: $showPrepare) { prepareEditor }
+            #else
+            .sheet(isPresented: $showPrepare) {
+                prepareEditor.frame(minWidth: 1000, idealWidth: 1400, minHeight: 680, idealHeight: 900)
+            }
+            #endif
             .task(id: source) { await loadInfo() }
             .task(id: machineId) {
                 await loadOptions()
                 #if DEBUG
+                // Simulator testing: VAULT_TEST_PREPARE=1 opens the 3D editor.
+                if ProcessInfo.processInfo.environment["VAULT_TEST_PREPARE"] != nil, machineId != nil {
+                    // Presenting while this sheet is still sliding in does nothing.
+                    try? await Task.sleep(for: .seconds(2))
+                    showPrepare = true
+                }
                 // Simulator testing: VAULT_TEST_PRINT=slice slices straight away, =preview also opens the layer preview.
                 let mode = ProcessInfo.processInfo.environment["VAULT_TEST_PRINT"]
                 if (mode == "slice" || mode == "preview"), needsSlice, options != nil { startSlice() }
@@ -235,6 +273,14 @@ struct PrintSheet: View {
                 Text("Slice settings")
             } footer: {
                 Text("Sliced on the server with OrcaSlicer using \(o.printer).")
+            }
+            if canPrepare {
+                Section {
+                    Button { showPrepare = true } label: { Label("Prepare in 3D…", systemImage: "cube") }
+                        .disabled(machineId == nil || sliceFileIds.isEmpty)
+                } footer: {
+                    Text("Place parts on the plate, paint supports and choose infill.")
+                }
             }
             Section("Adjust") {
                 Stepper(value: $settings.layerHeight, in: 0.08...0.32, step: 0.04) {
@@ -415,9 +461,28 @@ struct PrintSheet: View {
 
     // MARK: actions
 
+    /// The 3D editor sliced a plate: carry on from there, ready to print.
+    private func useSliced(_ fileId: Int) {
+        guard let client = state.client else { return }
+        Task {
+            do {
+                let i = try await client.printInfo(fileId: fileId)
+                info = i
+                plate = i.plates.first?.index ?? 1
+                mapping = [:]
+                slicedFileId = fileId
+                autoMap()
+                successHaptic()
+                state.changed()
+            } catch {
+                self.error = error.localizedDescription
+            }
+        }
+    }
+
     private func startSlice() {
         guard let machineId, let client = state.client else { return }
-        let ids = source == "all" ? meshParts.map(\.id) : selectedFile.map { [$0.id] } ?? []
+        let ids = sliceFileIds
         var overrides = settings.overrides
         if settings.slot >= 0, let slot = machine?.status.ams?.first(where: { $0.unit * 4 + $0.slot == settings.slot }) {
             overrides["filament_colours"] = .array([.string(slot.color)])

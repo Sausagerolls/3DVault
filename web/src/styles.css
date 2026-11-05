@@ -415,7 +415,7 @@ table.list input, table.list select { min-height: 28px; padding: 3px 8px; }
 .prepare { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg-sunken); }
 .prepare-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--bg-raised); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .prepare-main { flex: 1; min-height: 0; display: flex; }
-.prepare-view { position: relative; flex: 1; min-width: 0; }
+.prepare-view { position: relative; flex: 1; min-width: 0; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .prepare-panel { width: 320px; flex: none; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding: 14px; background: var(--bg-raised); border-left: 1px solid var(--border); }
 .prepare-actions { position: sticky; bottom: -14px; margin: auto -14px -14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; background: var(--bg-raised); border-top: 1px solid var(--border); }
 .prepare-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }

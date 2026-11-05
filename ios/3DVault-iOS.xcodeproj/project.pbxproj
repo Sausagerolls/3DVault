@@ -28,6 +28,7 @@
 		79AFB1FE8CFC8F369A2A1F57 /* VaultKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0F3E4B1752238C805527839B /* VaultKit */; };
 		7AA1F16FEE06373F7167728B /* PrintersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 771212231350788C54CFEE11 /* PrintersView.swift */; };
 		882972DCBC0CC762C3968296 /* VaultKit in Frameworks */ = {isa = PBXBuildFile; productRef = A79FB6EE09CE9226C376DB37 /* VaultKit */; };
+		90470419A3591ACD402DA3AD /* PrepareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F953C3E4D809C9CFD874BFA /* PrepareView.swift */; };
 		931F0D87C829510C0A293E6E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = C9D60CCBAC07294727771F09 /* PrivacyInfo.xcprivacy */; };
 		9AA6F290AA5D64BD042ADABE /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB096020F5968AAD825AF0F /* LoginView.swift */; };
 		A1C9E57E42A97DF8AF1D4A55 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 57676A81AD5CDAB13D36633F /* PrivacyInfo.xcprivacy */; };
@@ -94,6 +95,7 @@
 		311C26001D01B9138E844719 /* Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Appearance.swift; sourceTree = "<group>"; };
 		3390F7B3C86EC8802FFD7DE0 /* FileCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileCache.swift; sourceTree = "<group>"; };
 		4B7FE1A92193E9ABCB07E51E /* PrintTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintTracker.swift; sourceTree = "<group>"; };
+		4F953C3E4D809C9CFD874BFA /* PrepareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrepareView.swift; sourceTree = "<group>"; };
 		50D7A0E503827618FB0DE788 /* UploadSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadSheet.swift; sourceTree = "<group>"; };
 		518593DD28B53862031DF66C /* 3DVaultWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = 3DVaultWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		5252BCA52B74D2597C6EFF0D /* CategoryPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryPicker.swift; sourceTree = "<group>"; };
@@ -192,6 +194,7 @@
 			isa = PBXGroup;
 			children = (
 				7ACBBD0E663BC1CA5B900A5A /* Platform.swift */,
+				4F953C3E4D809C9CFD874BFA /* PrepareView.swift */,
 				771212231350788C54CFEE11 /* PrintersView.swift */,
 				D27DC233491A8EA6FC549F50 /* PrintSheet.swift */,
 			);
@@ -464,6 +467,7 @@
 				2D89EB7F544A0FC1E027051D /* Organise.swift in Sources */,
 				B8CDC40A406464EB1C2AF448 /* PinStore.swift in Sources */,
 				47A1F1BB10EAFDFCDB1A7039 /* Platform.swift in Sources */,
+				90470419A3591ACD402DA3AD /* PrepareView.swift in Sources */,
 				4CF99A0BC10580621CA960E4 /* PrintActivity.swift in Sources */,
 				D7D88292C4D5145C273F4E6F /* PrintAlarms.swift in Sources */,
 				1009A3669EF7F275701431DB /* PrintSheet.swift in Sources */,
