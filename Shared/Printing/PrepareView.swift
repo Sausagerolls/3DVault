@@ -33,7 +33,7 @@ private typealias WebViewRepresentable = UIViewRepresentable
 private typealias WebViewRepresentable = NSViewRepresentable
 #endif
 
-private struct PrepareWebView: WebViewRepresentable {
+fileprivate struct PrepareWebView: WebViewRepresentable {
     let url: URL
     let baseURL: URL
     let token: String
@@ -50,11 +50,22 @@ private struct PrepareWebView: WebViewRepresentable {
                 onSliced(id)
             } else if type == "close" {
                 onClose()
+            } else if type == "groups", let value = body["value"] as? String {
+                UserDefaults.standard.set(value, forKey: PrepareWebView.groupsKey)
             }
         }
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
+
+    fileprivate static let groupsKey = "prepare.groups"
+
+    /// Restores which setting groups were open, since this web view's storage isn't kept.
+    private static var restoreGroups: WKUserScript? {
+        guard let saved = UserDefaults.standard.string(forKey: groupsKey),
+              let data = try? JSONEncoder().encode(saved), let literal = String(data: data, encoding: .utf8) else { return nil }
+        return WKUserScript(source: "localStorage.setItem('prepare.groups', \(literal));", injectionTime: .atDocumentStart, forMainFrameOnly: true)
+    }
 
     private func makeWebView(_ coordinator: Coordinator) -> WKWebView {
         coordinator.onSliced = onSliced
@@ -63,6 +74,7 @@ private struct PrepareWebView: WebViewRepresentable {
         // Kept in memory only, so the token doesn't outlive this editor in a cookie store.
         config.websiteDataStore = .nonPersistent()
         config.userContentController.add(coordinator, name: "vault")
+        if let script = Self.restoreGroups { config.userContentController.addUserScript(script) }
         let web = WKWebView(frame: .zero, configuration: config)
         #if DEBUG
         web.isInspectable = true

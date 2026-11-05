@@ -50,7 +50,7 @@ struct ModelDetailView: View {
         .sheet(item: $printing) { t in
             if let m = model {
                 PrintSheet(model: m, initialFile: m.files.first { $0.id == t.fileId })
-                    .frame(minWidth: 520, idealWidth: 560, minHeight: 620, idealHeight: 720)
+                    .frame(minWidth: 520, idealWidth: 560, minHeight: 460, idealHeight: 680, maxHeight: 680)
             }
         }
         .task(id: model?.files.contains { $0.status == "pending" }) {
@@ -67,6 +67,10 @@ struct ModelDetailView: View {
             let m = try await ModelActions.detail(modelId, state: state)
             model = m
             notes = m.printNotes
+            #if DEBUG
+            // Testing: VAULT_TEST_PRINT=1 opens the print sheet.
+            if ProcessInfo.processInfo.environment["VAULT_TEST_PRINT"] != nil, printing == nil { printing = PrintTarget(fileId: nil) }
+            #endif
         } catch {
             self.error = error.localizedDescription
         }

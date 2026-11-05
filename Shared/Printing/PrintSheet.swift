@@ -118,6 +118,9 @@ struct PrintSheet: View {
                     Section { Text(error).foregroundStyle(.red) }
                 }
             }
+            // The Mac's default form lines everything up on a centre column, which pushes long
+            // text and wide rows off both sides of the sheet.
+            .formStyle(.grouped)
             .navigationTitle("Print \(model.name)")
             .inlineTitle()
             .toolbar {
@@ -139,7 +142,9 @@ struct PrintSheet: View {
             .fullScreenCover(isPresented: $showPrepare) { prepareEditor }
             #else
             .sheet(isPresented: $showPrepare) {
-                prepareEditor.frame(minWidth: 1000, idealWidth: 1400, minHeight: 680, idealHeight: 900)
+                // Nearly as big as the window, without running past its bottom edge.
+                let window = NSApp.mainWindow?.frame.size ?? CGSize(width: 1280, height: 800)
+                prepareEditor.frame(width: max(900, window.width - 60), height: max(560, window.height - 70))
             }
             #endif
             .task(id: source) { await loadInfo() }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, type Machine, type ModelDetail, type PrintInfo, type SliceTask, type SlicerOptions } from "../api";
@@ -26,7 +26,7 @@ type Settings = {
 
 const PATTERNS: [string, string][] = [
   ["grid", "Grid"], ["gyroid", "Gyroid"], ["cubic", "Cubic"], ["honeycomb", "Honeycomb"], ["triangles", "Triangles"],
-  ["line", "Line"], ["adaptivecubic", "Adaptive cubic"], ["lightning", "Lightning"], ["concentric", "Concentric"],
+  ["crosshatch", "Cross hatch"], ["line", "Line"], ["adaptivecubic", "Adaptive cubic"], ["lightning", "Lightning"], ["concentric", "Concentric"],
 ];
 
 const TOOLS: { id: Tool; label: string; title: string }[] = [
@@ -266,12 +266,12 @@ export default function PreparePage() {
           )}
         </div>
         <aside className="prepare-panel">
+          {options.error && slicedId == null && <p style={{ margin: 0, color: "#d9822b" }}>{(options.error as Error).message}</p>}
           {slicedId != null ? (
             <SliceResult fileId={slicedId} bed={options.data?.volume ?? null} onPrint={toPrint} onBack={() => setSlicedId(null)} />
           ) : (
             <>
-              <section className="col" style={{ gap: 8 }}>
-                <h3>Parts</h3>
+              <Group id="parts" title="Parts" summary={editor?.objects.length === 1 ? "1 part" : `${editor?.objects.length ?? 0} parts`} defaultOpen>
                 {editor?.objects.map((o) => (
                   <button key={o.id} className={`part ${selected === o ? "active" : ""}`} onClick={() => editor.select(o)} title={o.name}>
                     <span className="ellipsis">{o.name}</span>
@@ -300,23 +300,16 @@ export default function PreparePage() {
                     <Num label="Turn Z (°)" value={t.rz} step={15} onChange={(rz) => setT({ rz })} />
                   </div>
                 )}
-              </section>
+              </Group>
 
-              <section className="col" style={{ gap: 8 }}>
-                <h3>Printer and material</h3>
+              <Group id="printer" title="Printer" summary={[machine?.name, settings?.filament.split(" @")[0]].filter(Boolean).join(" · ")}>
                 <label className="field">Printer
                   <select value={machineId ?? ""} disabled={busy} onChange={(e) => setMachineId(Number(e.target.value))}>
                     {machines.data?.filter((x) => x.enabled).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
                   </select>
                 </label>
-                {options.error && <p style={{ margin: 0, color: "#d9822b" }}>{(options.error as Error).message}</p>}
                 {settings && options.data && (
                   <>
-                    <label className="field">Quality
-                      <select value={settings.process} onChange={(e) => set({ process: e.target.value })}>
-                        {options.data.processes.map((p) => <option key={p.name} value={p.name}>{p.name.split(" @")[0]}</option>)}
-                      </select>
-                    </label>
                     <label className="field">Filament
                       <select value={settings.filament} onChange={(e) => set({ filament: e.target.value })}>
                         {options.data.filaments.map((f) => <option key={f.name} value={f.name}>{f.name.split(" @")[0]}{f.user ? " (imported)" : ""}</option>)}
@@ -329,12 +322,35 @@ export default function PreparePage() {
                     </label>
                   </>
                 )}
-              </section>
+              </Group>
 
               {settings && options.data && (
                 <>
-                  <section className="col" style={{ gap: 8 }}>
-                    <h3>Supports</h3>
+                  <Group id="quality" title="Quality" summary={settings.process.split(" @")[0]}>
+                    <label className="field">Preset
+                      <select value={settings.process} onChange={(e) => set({ process: e.target.value })}>
+                        {options.data.processes.map((p) => <option key={p.name} value={p.name}>{p.name.split(" @")[0]}</option>)}
+                      </select>
+                    </label>
+                    <Num label="Layer height (mm)" value={settings.layer_height} min={0.04} max={0.6} step={0.04} onChange={(layer_height) => set({ layer_height })} />
+                  </Group>
+
+                  <Group id="strength" title="Strength" summary={`${settings.walls} walls · ${settings.infill}% ${PATTERNS.find((p) => p[0] === settings.pattern)?.[1] ?? settings.pattern}`}>
+                    <div className="prepare-grid">
+                      <Num label="Walls" value={settings.walls} min={1} max={20} onChange={(walls) => set({ walls })} />
+                      <Num label="Top layers" value={settings.top} min={0} max={50} onChange={(top) => set({ top })} />
+                      <Num label="Bottom layers" value={settings.bottom} min={0} max={50} onChange={(bottom) => set({ bottom })} />
+                      <Num label="Infill (%)" value={settings.infill} min={0} max={100} step={5} onChange={(infill) => set({ infill })} />
+                    </div>
+                    <label className="field">Infill pattern
+                      <select value={settings.pattern} onChange={(e) => set({ pattern: e.target.value })}>
+                        {!PATTERNS.some((p) => p[0] === settings.pattern) && <option value={settings.pattern}>{settings.pattern}</option>}
+                        {PATTERNS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+                      </select>
+                    </label>
+                  </Group>
+
+                  <Group id="support" title="Support" summary={{ off: "Off", auto: `Automatic · ${settings.style}`, painted: `Painted · ${settings.style}` }[settings.supports]} defaultOpen>
                     <label className="field">Supports
                       <select value={settings.supports} onChange={(e) => set({ supports: e.target.value as Settings["supports"] })}>
                         <option value="off">Off</option>
@@ -360,31 +376,18 @@ export default function PreparePage() {
                       <input type="checkbox" checked={overhangs} onChange={(e) => setOverhangs(e.target.checked)} /> Highlight overhangs
                     </label>
                     {settings.supports === "painted" && !editor?.painted && <p className="dim" style={{ margin: 0, fontSize: 12 }}>Nothing is painted yet, so this slice would have no supports.</p>}
-                  </section>
+                  </Group>
 
-                  <section className="col" style={{ gap: 8 }}>
-                    <h3>Strength</h3>
-                    <div className="prepare-grid">
-                      <Num label="Layer height (mm)" value={settings.layer_height} min={0.04} max={0.6} step={0.04} onChange={(layer_height) => set({ layer_height })} />
-                      <Num label="Infill (%)" value={settings.infill} min={0} max={100} step={5} onChange={(infill) => set({ infill })} />
-                      <Num label="Walls" value={settings.walls} min={1} max={20} onChange={(walls) => set({ walls })} />
-                      <Num label="Top layers" value={settings.top} min={0} max={50} onChange={(top) => set({ top })} />
-                      <Num label="Bottom layers" value={settings.bottom} min={0} max={50} onChange={(bottom) => set({ bottom })} />
-                    </div>
-                    <label className="field">Infill pattern
-                      <select value={settings.pattern} onChange={(e) => set({ pattern: e.target.value })}>
-                        {!PATTERNS.some((p) => p[0] === settings.pattern) && <option value={settings.pattern}>{settings.pattern}</option>}
-                        {PATTERNS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
-                      </select>
-                    </label>
+                  <Group id="others" title="Others" summary={{ auto_brim: "Brim: automatic", outer_only: "Brim: outer only", no_brim: "No brim" }[settings.brim] ?? settings.brim}>
                     <label className="field">Brim
                       <select value={settings.brim} onChange={(e) => set({ brim: e.target.value })}>
+                        {!["auto_brim", "outer_only", "no_brim"].includes(settings.brim) && <option value={settings.brim}>{settings.brim}</option>}
                         <option value="auto_brim">Automatic</option>
                         <option value="outer_only">Outer only</option>
                         <option value="no_brim">No brim</option>
                       </select>
                     </label>
-                  </section>
+                  </Group>
                 </>
               )}
 
@@ -403,6 +406,38 @@ export default function PreparePage() {
         </aside>
       </div>
     </div>
+  );
+}
+
+/** Which groups are open is remembered on this device. */
+const OPEN_KEY = "prepare.groups";
+const savedGroups = (): Record<string, boolean> => {
+  try {
+    return JSON.parse(localStorage.getItem(OPEN_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+};
+
+/** A collapsible group of settings. Its summary says what's chosen while it's closed. */
+function Group({ id, title, summary, defaultOpen, children }: { id: string; title: string; summary?: string; defaultOpen?: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(savedGroups()[id] ?? !!defaultOpen);
+  const toggle = () => {
+    setOpen(!open);
+    const value = JSON.stringify({ ...savedGroups(), [id]: !open });
+    localStorage.setItem(OPEN_KEY, value);
+    // The apps' web views forget their storage, so the app keeps this and hands it back next time.
+    native()?.postMessage({ type: "groups", value });
+  };
+  return (
+    <section className={`prepare-group ${open ? "open" : ""}`}>
+      <button className="prepare-group-head" aria-expanded={open} onClick={toggle}>
+        <span className="prepare-chevron" aria-hidden>›</span>
+        <span className="prepare-group-title">{title}</span>
+        {!open && summary && <span className="prepare-group-summary ellipsis">{summary}</span>}
+      </button>
+      {open && <div className="col prepare-group-body">{children}</div>}
+    </section>
   );
 }
 

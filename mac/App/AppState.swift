@@ -52,6 +52,18 @@ final class AppState {
 
     func restore() async {
         defer { isRestoring = false }
+        #if DEBUG
+        // Testing: VAULT_TEST_SERVER/USER/PASSWORD sign in for this run only, leaving the saved
+        // account alone, since this build shares its keychain with the installed app.
+        let env = ProcessInfo.processInfo.environment
+        if let s = env["VAULT_TEST_SERVER"].flatMap(URL.init(string:)), let u = env["VAULT_TEST_USER"], let p = env["VAULT_TEST_PASSWORD"],
+           let (token, me) = try? await APIClient.login(server: s, username: u, password: p, deviceName: "3DVault test") {
+            serverURL = s
+            user = me
+            connect(APIClient(baseURL: s, token: token))
+            return
+        }
+        #endif
         guard let serverURL, let account = UserDefaults.standard.string(forKey: Self.userKey),
               let token = Keychain.load(account: Self.keychainAccount(serverURL, account))
         else { return }

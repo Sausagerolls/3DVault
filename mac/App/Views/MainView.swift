@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 import VaultKit
@@ -110,6 +111,23 @@ struct MainView: View {
                 .navigationSplitViewColumnWidth(min: 320, ideal: 400, max: 560)
         }
         .searchable(text: $search, placement: .toolbar, prompt: "Search models, tags, files")
+        #if DEBUG
+        .task {
+            // Testing: VAULT_TEST_MODEL=<id> opens that model once the library has loaded, and
+            // VAULT_TEST_SNAPSHOT=<seconds> then lists the window numbers in the app's temporary
+            // folder for screencapture, and quits a little later.
+            let env = ProcessInfo.processInfo.environment
+            guard let id = env["VAULT_TEST_MODEL"].flatMap(Int.init) else { return }
+            try? await Task.sleep(for: .seconds(2))
+            selection = [id]
+            guard let wait = env["VAULT_TEST_SNAPSHOT"].flatMap(Double.init) else { return }
+            try? await Task.sleep(for: .seconds(wait))
+            let numbers = NSApp.windows.filter(\.isVisible).map { String($0.windowNumber) }.joined(separator: " ")
+            try? numbers.write(to: FileManager.default.temporaryDirectory.appending(path: "windows.txt"), atomically: true, encoding: .utf8)
+            try? await Task.sleep(for: .seconds(4))
+            exit(0)
+        }
+        #endif
         .task(id: ReloadKey(query: query, revision: state.revision, section: section ?? .all, offline: state.offline)) {
             // Debounce typing in the search field.
             if !search.isEmpty { try? await Task.sleep(for: .milliseconds(250)) }

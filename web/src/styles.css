@@ -416,10 +416,17 @@ table.list input, table.list select { min-height: 28px; padding: 3px 8px; }
 .prepare-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--bg-raised); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .prepare-main { flex: 1; min-height: 0; display: flex; }
 .prepare-view { position: relative; flex: 1; min-width: 0; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-.prepare-panel { width: 320px; flex: none; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding: 14px; background: var(--bg-raised); border-left: 1px solid var(--border); }
-.prepare-actions { position: sticky; bottom: -14px; margin: auto -14px -14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; background: var(--bg-raised); border-top: 1px solid var(--border); }
+.prepare-panel { width: 320px; flex: none; overflow-y: auto; display: flex; flex-direction: column; gap: 0; padding: 0 14px 14px; background: var(--bg-raised); border-left: 1px solid var(--border); }
+.prepare-actions { margin-top: auto; position: sticky; bottom: -14px; margin: auto -14px -14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; background: var(--bg-raised); border-top: 1px solid var(--border); }
 .prepare-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
 .prepare-note { position: absolute; top: 12px; left: 12px; padding: 4px 10px; border-radius: 999px; background: var(--bg-raised); font-size: 13px; }
 .prepare-brush { position: absolute; bottom: 14px; left: 14px; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 10px; background: var(--bg-raised); border: 1px solid var(--border); }
 .prepare .segment { display: flex; gap: 2px; }
 .prepare button.part { display: flex; justify-content: space-between; gap: 8px; width: 100%; text-align: left; }
+.prepare-group { border-bottom: 1px solid var(--border); }
+.prepare button.prepare-group-head { display: flex; align-items: center; justify-content: flex-start; gap: 8px; width: 100%; height: 42px; padding: 0; background: transparent; border: 0; text-align: left; }
+.prepare-chevron { flex: none; width: 12px; font-size: 16px; line-height: 1; color: var(--text-faint); transition: transform 0.12s; }
+.prepare-group.open .prepare-chevron { transform: rotate(90deg); }
+.prepare-group-title { flex: none; font-weight: 600; font-size: 13px; }
+.prepare-group-summary { flex: 1; min-width: 0; text-align: right; font-size: 12px; color: var(--text-faint); }
+.prepare-group-body { gap: 8px; padding: 0 0 14px; }
