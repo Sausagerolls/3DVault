@@ -114,7 +114,7 @@ def run_slice(slice_id: int) -> None:
     """Slice with OrcaSlicer and add the .gcode.3mf to the model, named after printer and process."""
     import tempfile
 
-    from . import services, slicer
+    from . import prepare, services, slicer
     from .models import Machine, SliceTask, User
 
     with session_scope() as db:
@@ -127,12 +127,20 @@ def run_slice(slice_id: int) -> None:
             return
         t.state, t.started_at = "slicing", utcnow()
         inputs = [file_path(f) for f in files]
+        paths = {f.id: file_path(f) for f in files}
         machine = db.get(Machine, t.machine_id) if t.machine_id else None
         args = (t.printer_profile, t.process_profile, list(t.filament_profiles), dict(t.overrides))
         label = " - ".join(x for x in (machine.name if machine else t.printer_profile, t.process_profile.split(" @")[0]) if x)
     out = Path(tempfile.mkstemp(dir=settings.staging_dir, suffix=".gcode.3mf")[1])
+    layout = args[3].pop("layout", None)
+    project = Path(tempfile.mkstemp(dir=settings.staging_dir, suffix=".3mf")[1]) if layout else None
     try:
-        slicer.slice_files(inputs, *args, out)
+        if layout:
+            # Placed and painted in the 3D editor.
+            prepare.write_project([{**item, "path": prepare.editor_mesh_path(paths[item["file_id"]], item["file_id"])} for item in layout], project)
+            slicer.slice_files([project], *args, out, arrange=False)
+        else:
+            slicer.slice_files(inputs, *args, out)
     except Exception as e:
         out.unlink(missing_ok=True)
         with session_scope() as db:
@@ -140,6 +148,9 @@ def run_slice(slice_id: int) -> None:
             t.state, t.error, t.finished_at = "failed", str(e)[:2000], utcnow()
         log.warning("slice %s failed: %s", slice_id, e)
         return
+    finally:
+        if project:
+            project.unlink(missing_ok=True)
     with session_scope() as db:
         t = db.get(SliceTask, slice_id)
         model = db.get(Model, t.model_id)

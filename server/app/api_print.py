@@ -1,9 +1,10 @@
 """Printers 3DVault can send to, their live status, and print jobs."""
 
 import asyncio
+import math
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 from starlette.datastructures import UploadFile
 from pydantic import BaseModel
 from sqlalchemy import or_
@@ -14,7 +15,8 @@ from .db import get_db
 from .drivers import DRIVERS, DriverError, Status
 from .formats import print_format, sliced_3mf_info
 from .library import file_path
-from . import services, slicer, toolpaths
+from . import prepare, services, slicer, toolpaths
+from .mesh import MeshError
 from .models import File, Machine, Model, Printer, PrintJob, SliceTask, User
 from .printing import ACTIVE, manager
 from .secretbox import seal
@@ -395,9 +397,15 @@ def slicer_options(machine_id: int, db: Session = Depends(get_db), user: User = 
             "enable_support": str(flat.get("enable_support", "0")) == "1",
             "support_type": flat.get("support_type", "normal(auto)"),
             "brim_type": flat.get("brim_type", "auto_brim"),
+            "sparse_infill_pattern": flat.get("sparse_infill_pattern", "grid"),
+            "top_shell_layers": _num(flat.get("top_shell_layers")),
+            "bottom_shell_layers": _num(flat.get("bottom_shell_layers")),
+            "support_threshold_angle": _num(flat.get("support_threshold_angle")),
+            "support_on_build_plate_only": str(flat.get("support_on_build_plate_only", "0")) == "1",
         }
     return {
         "printer": m.slicer_printer,
+        "volume": _build_volume(machine),
         "processes": proc,
         "filaments": slicer.profiles.for_printer("filament", m.slicer_printer),
         "bed_types": [b for b in BED_TYPES if b not in unsupported],
@@ -406,6 +414,15 @@ def slicer_options(machine_id: int, db: Session = Depends(get_db), user: User = 
         "default_bed_type": model.get("default_bed_type", ""),
         "defaults": defaults,
     }
+
+
+def _build_volume(machine: dict) -> dict | None:
+    """The printable size in mm, from the profile's corner list ("0x0", "180x0", ...)."""
+    try:
+        corners = [tuple(float(n) for n in str(c).split("x")) for c in machine["printable_area"]]
+        return {"x": max(c[0] for c in corners), "y": max(c[1] for c in corners), "z": float(_num(machine.get("printable_height")) or 0)}
+    except (KeyError, ValueError, IndexError):
+        return None
 
 
 def _num(v):
@@ -448,6 +465,37 @@ def _slice_out(t: SliceTask) -> dict:
     }
 
 
+def _check_layout(layout: list, file_ids: list[int]) -> None:
+    """An item from the 3D editor: {file_id, matrix (16 numbers), enforce, block, name}."""
+    if not isinstance(layout, list) or not layout or len(layout) > 200:
+        raise HTTPException(400, "The plate is empty")
+    for item in layout:
+        matrix = item.get("matrix") if isinstance(item, dict) else None
+        if not isinstance(matrix, list) or len(matrix) != 16 or not all(isinstance(x, (int, float)) and math.isfinite(x) for x in matrix):
+            raise HTTPException(400, "Bad position on the plate")
+        if item.get("file_id") not in file_ids:
+            raise HTTPException(400, "A part on the plate isn't one of the files being sliced")
+        for key in ("enforce", "block"):
+            runs = item.get(key) or []
+            if not isinstance(runs, list) or len(runs) % 2 or not all(isinstance(x, int) and x >= 0 for x in runs):
+                raise HTTPException(400, "Bad support painting")
+
+
+@router.get("/files/{file_id}/editor-mesh")
+async def editor_mesh(file_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    """The file's mesh for the 3D editor, as a binary STL."""
+    f = db.get(File, file_id)
+    if f is None:
+        raise HTTPException(404)
+    if f.ext not in SLICEABLE or print_format(f.rel_path, f.meta) is not None:
+        raise HTTPException(400, "This file can't be placed on a plate")
+    try:
+        path = await asyncio.to_thread(prepare.editor_mesh_path, file_path(f), f.id)
+    except MeshError as e:
+        raise HTTPException(422, str(e))
+    return FileResponse(path, media_type="model/stl")
+
+
 @router.post("/slices")
 def create_slice(body: SliceIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
     if not slicer.available():
@@ -462,7 +510,10 @@ def create_slice(body: SliceIn, db: Session = Depends(get_db), user: User = Depe
         raise HTTPException(400, "Files must belong to one model")
     if any(f.ext not in SLICEABLE for f in files):
         raise HTTPException(400, "Only STL, OBJ, 3MF and STEP files can be sliced")
-    if len(files) > 1 and any(f.ext == "3mf" for f in files):
+    layout = body.overrides.get("layout")
+    if layout is not None:
+        _check_layout(layout, body.file_ids)
+    elif len(files) > 1 and any(f.ext == "3mf" for f in files):
         raise HTTPException(400, "Slice a 3MF project on its own")
     if not slicer.profiles.find("process", body.process):
         raise HTTPException(400, "Unknown process profile")

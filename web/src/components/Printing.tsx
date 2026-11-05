@@ -439,6 +439,11 @@ export function PrintDialog({ m, initialFile, onClose }: { m: ModelDetail; initi
                 </select>
               </div>
               <p className="faint" style={{ margin: 0, fontSize: 12 }}>Sliced on the server with OrcaSlicer using {options.data.printer}.</p>
+              {window.innerWidth >= 700 && (
+                <Link className="btn" style={{ alignSelf: "flex-start" }} to={`/models/${m.id}/prepare?machine=${machineId}&files=${source === "all" ? parts.map((f) => f.id).join(",") : fileId}`}>
+                  Prepare in 3D…
+                </Link>
+              )}
             </div>
           ) : (
             <p className="dim">Loading slicer settings…</p>

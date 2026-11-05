@@ -36,6 +36,10 @@ OVERRIDES = {
     "support_type": lambda v: str(v),  # normal(auto) | tree(auto) | normal(manual) | tree(manual)
     "brim_type": lambda v: str(v),  # auto_brim | outer_only | no_brim | ...
     "sparse_infill_pattern": lambda v: str(v),
+    "top_shell_layers": lambda v: str(int(v)),
+    "bottom_shell_layers": lambda v: str(int(v)),
+    "support_threshold_angle": lambda v: str(int(v)),
+    "support_on_build_plate_only": lambda v: "1" if v else "0",
 }
 
 
@@ -259,8 +263,12 @@ def _store(data: dict, path: str = "") -> tuple[str, str]:
 # ---------------------------------------------------------------- slicing
 
 
-def slice_files(inputs: list[Path], printer: str, process: str, filaments: list[str], overrides: dict, out_path: Path) -> str:
-    """Slice `inputs` into a .gcode.3mf at out_path. Returns the tail of Orca's log for errors."""
+def slice_files(inputs: list[Path], printer: str, process: str, filaments: list[str], overrides: dict, out_path: Path,
+                arrange: bool = True) -> str:
+    """Slice `inputs` into a .gcode.3mf at out_path. Returns the tail of Orca's log for errors.
+
+    With arrange=False the models stay exactly where the input project puts them.
+    """
     if not available():
         raise RuntimeError("OrcaSlicer isn't installed in this server image")
     with tempfile.TemporaryDirectory(dir=settings.cache_dir) as tmp:
@@ -291,8 +299,9 @@ def slice_files(inputs: list[Path], printer: str, process: str, filaments: list[
         env = {**os.environ, "HOME": str(d)}
 
         # Pass 1: arrange the models with our profiles into an unsliced project.
+        placement = ["--arrange", "1", "--orient", "1", "--ensure-on-bed"] if arrange else ["--arrange", "0", "--orient", "0"]
         cmd = [
-            *base, "--arrange", "1", "--orient", "1", "--ensure-on-bed",
+            *base, *placement,
             "--load-settings", f"{d / 'machine.json'};{d / 'process.json'}",
             "--outputdir", str(d), "--export-3mf", "project.3mf",
         ]

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { Suspense, createContext, lazy, useContext, useEffect, useState } from "react";
 import { PrintersPage } from "./components/Printing";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -10,6 +10,9 @@ import Upload, { setPendingDrop } from "./pages/Upload";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import { collectDropped } from "./pages/drop";
+
+// Loaded only when opened, since it brings the 3D editing code with it.
+const PreparePage = lazy(() => import("./pages/Prepare"));
 
 const UserCtx = createContext<User | null>(null);
 export const useUser = () => useContext(UserCtx)!;
@@ -42,7 +45,10 @@ export default function App() {
   return (
     <UserCtx.Provider value={me.data}>
       <ToastProvider>
-        <Shell />
+        <Routes>
+          <Route path="/models/:id/prepare" element={<Suspense fallback={null}><PreparePage /></Suspense>} />
+          <Route path="*" element={<Shell />} />
+        </Routes>
       </ToastProvider>
     </UserCtx.Provider>
   );

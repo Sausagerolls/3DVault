@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   FLAG_LABELS,
   STATUS_LABELS,
@@ -44,7 +44,8 @@ export default function ModelPage() {
   const [activeId, setActiveId] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
   // File id the print dialog opens with; 0 lets it choose, null keeps it closed.
-  const [printing, setPrinting] = useState<number | null>(null);
+  const location = useLocation();
+  const [printing, setPrinting] = useState<number | null>((location.state as { print?: number } | null)?.print ?? null);
 
   const visualFiles = useMemo(() => (m ? m.files.filter((f) => f.has_preview || f.has_thumb) : []), [m]);
   const active: VaultFile | null = useMemo(() => {

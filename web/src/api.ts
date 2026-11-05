@@ -128,13 +128,14 @@ export type PrintInfo = {
 export type SlicerProfile = { name: string; vendor: string; user: boolean; type: string };
 export type SlicerOptions = {
   printer: string;
+  volume: { x: number; y: number; z: number } | null;
   processes: SlicerProfile[];
   filaments: SlicerProfile[];
   bed_types: string[];
   default_process: string;
   default_filament: string;
   default_bed_type: string;
-  defaults: { layer_height: number | null; sparse_infill_density: number | null; wall_loops: number | null; enable_support: boolean; support_type: string; brim_type: string };
+  defaults: { layer_height: number | null; sparse_infill_density: number | null; wall_loops: number | null; enable_support: boolean; support_type: string; brim_type: string; sparse_infill_pattern?: string; top_shell_layers?: number | null; bottom_shell_layers?: number | null; support_threshold_angle?: number | null; support_on_build_plate_only?: boolean };
 };
 export type SliceTask = { id: number; state: "queued" | "slicing" | "done" | "failed"; error: string; output_file_id: number | null; ahead?: number };
 export type ToolpathSummary = { layers: number; z: number[]; bounds: [number, number, number, number] | null };
