@@ -96,8 +96,8 @@ def _store(db: Session, tmp: Path, filename: str, stem: str, user: User) -> File
     return model.files[0]
 
 
-@router.post("/files/local")
-async def upload(machine_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
+async def _receive(db: Session, machine_id: int, request: Request, user: User, queue: bool) -> tuple[File, dict | None, list]:
+    """Store an uploaded G-code or sliced 3MF, and queue it on this printer if asked."""
     machine = _machine(db, machine_id)
     form = await request.form()
     up = form.get("file")
@@ -122,15 +122,44 @@ async def upload(machine_id: int, request: Request, db: Session = Depends(get_db
         tmp.unlink(missing_ok=True)
         tmp, filename = wrapped, f"{stem}.gcode.3mf"
     sliced = filename.lower().endswith(".3mf") and _is_sliced_project(tmp)
-    if filename.lower().endswith(".3mf") and not sliced and is_slicer_project(tmp) and form.get("print") == "true":
+    if filename.lower().endswith(".3mf") and not sliced and queue:
         tmp.unlink(missing_ok=True)
         raise HTTPException(400, "This 3MF isn't sliced yet. Slice it first, then send it.")
 
     f = _store(db, tmp, filename, stem, user)
+    if not queue:
+        return f, None, []
+    plates = _file_print_info(db, f).get("plates") or []
+    indexes = [p["index"] for p in plates]
+    try:
+        wanted = int(form.get("plate") or 0)
+    except ValueError:
+        wanted = 0
+    plate = wanted if wanted in indexes else (indexes[0] if indexes else 1)
+    try:
+        job = create_job(JobIn(file_id=f.id, machine_id=machine.id, plate=plate), db, user)
+    except HTTPException as e:
+        raise HTTPException(e.status_code, f"Saved to your library, but not queued: {e.detail}") from e
+    return f, job, plates
 
-    body: dict = {"files": {"local": {"name": filename, "origin": "local", "path": f.rel_path}}, "done": True}
-    if str(form.get("print", "")).lower() == "true":
-        plates = _file_print_info(db, f).get("plates") or []
-        job = create_job(JobIn(file_id=f.id, machine_id=machine.id, plate=plates[0]["index"] if plates else 1), db, user)
+
+@router.post("/files/local")
+async def upload(machine_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    form = await request.form()
+    queue = str(form.get("print", "")).lower() == "true"
+    f, job, _ = await _receive(db, machine_id, request, user, queue)
+    name = Path(f.rel_path).name
+    body: dict = {"files": {"local": {"name": name, "origin": "local", "path": f.rel_path}}, "done": True}
+    if job:
         body["vault_job_id"] = job["id"]
     return JSONResponse(body, status_code=201)
+
+
+# The apps and web page use this to put a file straight into a printer's queue.
+queue_router = APIRouter(prefix="/api/v1", tags=["printing"])
+
+
+@queue_router.post("/machines/{machine_id}/queue-file", status_code=201)
+async def queue_file(machine_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    f, job, plates = await _receive(db, machine_id, request, user, True)
+    return {"file_id": f.id, "model_id": f.model_id, "job": job, "plates": len(plates)}

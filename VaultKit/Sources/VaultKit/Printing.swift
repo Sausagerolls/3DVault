@@ -372,6 +372,16 @@ extension APIClient {
         try await decode(send("machines/\(machine)/bed-cleared", method: "POST"))
     }
 
+    /// Uploads a G-code file or sliced 3MF and adds it to this printer's queue.
+    /// Returns how many plates the file holds; the first one is queued.
+    @discardableResult
+    public func queueFile(machine: Int, file: URL) async throws -> Int {
+        struct Out: Decodable { let plates: Int }
+        let body = try MultipartBody(files: [("file", file)], fields: [])
+        let out: Out = try await decode(upload("machines/\(machine)/queue-file", body: body))
+        return out.plates
+    }
+
     public func cameraURL(machine: Int) -> URL { url("machines/\(machine)/camera") }
 
     public func slicerOptions(machineId: Int) async throws -> SlicerOptions {

@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
   api,
+  uploadForm,
   type Machine,
   type ModelDetail,
   type PrintInfo,
@@ -92,6 +93,8 @@ function PrinterCard({ m }: { m: Machine }) {
   const qc = useQueryClient();
   const [showQueue, setShowQueue] = useState(false);
   const [fullScreen, setFullScreen] = useState(false);
+  const [sending, setSending] = useState<number | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const s = m.status;
   const job = m.active_job;
   const busy = ["preparing", "printing", "paused"].includes(s.state);
@@ -102,6 +105,22 @@ function PrinterCard({ m }: { m: Machine }) {
       qc.invalidateQueries({ queryKey: ["machines"] });
     } catch (e) {
       toast((e as Error).message, true);
+    }
+  };
+  const queueFile = async (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    setSending(0);
+    try {
+      const res = await uploadForm<{ plates: number }>(`/machines/${m.id}/queue-file`, form, setSending);
+      toast(res.plates > 1 ? `Added plate 1 of ${res.plates} to the ${m.name} queue` : `Added ${file.name} to the ${m.name} queue`);
+      setShowQueue(true);
+      qc.invalidateQueries({ queryKey: ["machines"] });
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+    } catch (e) {
+      toast((e as Error).message, true);
+    } finally {
+      setSending(null);
     }
   };
   const temp = (t?: { temp: number | null; target: number | null }) =>
@@ -161,9 +180,31 @@ function PrinterCard({ m }: { m: Machine }) {
           <button className="small primary" disabled={busy} onClick={() => act("bed-cleared")}>Bed cleared</button>
         </div>
       )}
-      <button className="small ghost" style={{ alignSelf: "flex-start" }} onClick={() => setShowQueue(!showQueue)}>
-        {m.queued ? `${m.queued} waiting in queue` : "Queue and history"} {showQueue ? "▾" : "▸"}
-      </button>
+      <div className="row" style={{ gap: 8 }}>
+        <button className="small ghost" onClick={() => setShowQueue(!showQueue)}>
+          {m.queued ? `${m.queued} waiting in queue` : "Queue and history"} {showQueue ? "▾" : "▸"}
+        </button>
+        <span className="spacer" />
+        <button
+          className="small"
+          disabled={sending != null || !m.enabled}
+          title="Add a G-code file or sliced 3MF to this printer's queue"
+          onClick={() => fileInput.current?.click()}
+        >
+          {sending != null ? `Uploading ${Math.round(sending * 100)}%` : "Upload G-code…"}
+        </button>
+        <input
+          ref={fileInput}
+          type="file"
+          hidden
+          accept=".gcode,.3mf,.bgcode,.gco,.g"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) queueFile(file);
+          }}
+        />
+      </div>
       {showQueue && <JobList machineId={m.id} />}
     </section>
   );

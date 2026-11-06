@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 import VaultKit
 
 /// Live status of every printer, with camera, controls and the print queue.
@@ -126,6 +127,9 @@ private struct PrinterCard: View {
     @State private var editing: MachineDraft?
     @State private var kinds: [MachineKind] = []
     @State private var fullScreen = false
+    @State private var pickingFile = false
+    @State private var uploading = false
+    @State private var uploadNote: String?
 
     private var s: PrinterStatus { machine.status }
 
@@ -225,6 +229,23 @@ private struct PrinterCard: View {
                         .buttonStyle(.borderedProminent)
                         .disabled(busy || s.isBusy)
                 }
+            }
+
+            HStack {
+                Button { pickingFile = true } label: {
+                    Label(uploading ? "Uploading…" : "Upload G-code", systemImage: "square.and.arrow.up")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(uploading || !machine.enabled)
+                .help("Add a G-code file or sliced 3MF to this printer's queue")
+                if uploading { ProgressView().controlSize(.small) }
+                if let uploadNote {
+                    Text(uploadNote).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                }
+            }
+            .fileImporter(isPresented: $pickingFile, allowedContentTypes: Self.printFileTypes) { result in
+                if case .success(let url) = result { queueFile(url) }
             }
 
             #if os(macOS)
@@ -350,6 +371,33 @@ private struct PrinterCard: View {
 
     private func control(_ action: String) {
         run { try await $0.control(machine: machine.id, action) }
+    }
+
+    private static let printFileTypes: [UTType] = {
+        let types = ["gcode", "3mf", "bgcode", "gco", "g"].compactMap { UTType(filenameExtension: $0) }
+        return types.isEmpty ? [.data] : types
+    }()
+
+    private func queueFile(_ url: URL) {
+        guard let client = state.client else { return }
+        uploading = true
+        uploadNote = nil
+        Task {
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            do {
+                let plates = try await client.queueFile(machine: machine.id, file: url)
+                uploadNote = plates > 1 ? "Added plate 1 of \(plates) to the queue" : "Added \(url.lastPathComponent) to the queue"
+                successHaptic()
+            } catch {
+                state.report(error)
+            }
+            uploading = false
+            await refresh()
+            let shown = uploadNote
+            try? await Task.sleep(for: .seconds(8))
+            if uploadNote == shown { uploadNote = nil }
+        }
     }
 
     private func clearBed() {

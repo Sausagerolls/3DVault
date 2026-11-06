@@ -31,6 +31,7 @@ app.include_router(api_models.router)
 app.include_router(api_misc.router)
 app.include_router(api_print.router)
 app.include_router(api_printhost.router)
+app.include_router(api_printhost.queue_router)
 
 
 @app.get("/api/health")
