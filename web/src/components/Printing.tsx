@@ -94,6 +94,7 @@ function PrinterCard({ m }: { m: Machine }) {
   const [showQueue, setShowQueue] = useState(false);
   const [fullScreen, setFullScreen] = useState(false);
   const [sending, setSending] = useState<number | null>(null);
+  const [dropping, setDropping] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const s = m.status;
   const job = m.active_job;
@@ -126,7 +127,24 @@ function PrinterCard({ m }: { m: Machine }) {
   const temp = (t?: { temp: number | null; target: number | null }) =>
     t?.temp == null ? "–" : `${Math.round(t.temp)}°${t.target ? ` / ${Math.round(t.target)}°` : ""}`;
   return (
-    <section className="panel col">
+    <section
+      className="panel col"
+      style={dropping ? { outline: "2px dashed var(--accent)", outlineOffset: -2 } : undefined}
+      onDragOver={(e) => {
+        if (!m.enabled || sending != null || !e.dataTransfer.types.includes("Files")) return;
+        e.preventDefault();
+        setDropping(true);
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropping(false);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDropping(false);
+        const file = e.dataTransfer.files[0];
+        if (file && m.enabled && sending == null) queueFile(file);
+      }}
+    >
       <div className="row">
         <h2 className="grow">{m.name}</h2>
         <StateBadge state={m.enabled ? (m.needs_clear && !busy ? "needs_clear" : s.state) : "offline"} />
@@ -185,13 +203,14 @@ function PrinterCard({ m }: { m: Machine }) {
           {m.queued ? `${m.queued} waiting in queue` : "Queue and history"} {showQueue ? "▾" : "▸"}
         </button>
         <span className="spacer" />
+        <span className="dim queue-hint" style={{ fontSize: 12 }}>G-code or sliced 3MF, or drop a file here</span>
         <button
-          className="small"
+          className="small primary"
           disabled={sending != null || !m.enabled}
           title="Add a G-code file or sliced 3MF to this printer's queue"
           onClick={() => fileInput.current?.click()}
         >
-          {sending != null ? `Uploading ${Math.round(sending * 100)}%` : "Upload G-code…"}
+          {sending != null ? `Uploading ${Math.round(sending * 100)}%` : "Add to queue…"}
         </button>
         <input
           ref={fileInput}
