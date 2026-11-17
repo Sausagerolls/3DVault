@@ -494,21 +494,51 @@ struct PrintQueueView: View {
     let open: (Int) -> Void
     @State private var jobs: [PrintJob] = []
 
+    private var waiting: [PrintJob] { jobs.filter { $0.state == "queued" } }
+
     var body: some View {
         List {
-            let waiting = jobs.filter { $0.state == "queued" }.sorted { $0.id < $1.id }
+            // The server lists waiting jobs in the order they will print.
             if !waiting.isEmpty {
-                Section("Waiting") {
-                    ForEach(waiting) { j in
-                        JobRow(job: j, open: open)
+                Section {
+                    ForEach(Array(waiting.enumerated()), id: \.element.id) { index, j in
+                        JobRow(job: j, place: index + 1, open: open)
                             .swipeActions {
                                 Button("Remove", role: .destructive) { cancel(j) }
                             }
+                            .contextMenu {
+                                Button { move(j, to: 0) } label: { Label("Print Next", systemImage: "arrow.up.to.line") }
+                                    .disabled(index == 0)
+                                Button { move(j, to: index - 1) } label: { Label("Move Up", systemImage: "arrow.up") }
+                                    .disabled(index == 0)
+                                Button { move(j, to: index + 1) } label: { Label("Move Down", systemImage: "arrow.down") }
+                                    .disabled(index == waiting.count - 1)
+                                Divider()
+                                Button(role: .destructive) { cancel(j) } label: { Label("Remove", systemImage: "trash") }
+                            }
+                    }
+                    .onMove { from, to in reorder(from: from, to: to) }
+                } header: {
+                    Text("Waiting")
+                } footer: {
+                    if waiting.count > 1 {
+                        #if os(iOS)
+                        Text("Touch and hold a print to change the order.")
+                        #else
+                        Text("Drag prints to change the order, or right-click one.")
+                        #endif
                     }
                 }
             }
             Section("History") {
-                ForEach(jobs.filter { $0.state != "queued" }) { j in JobRow(job: j, open: open) }
+                ForEach(jobs.filter { $0.state != "queued" }) { j in
+                    JobRow(job: j, open: open, retry: canRetry(j) ? { retry(j) } : nil)
+                        .swipeActions {
+                            if canRetry(j) {
+                                Button("Retry") { retry(j) }.tint(.accentColor)
+                            }
+                        }
+                }
             }
         }
         .navigationTitle(machine.name)
@@ -521,6 +551,44 @@ struct PrintQueueView: View {
                 await load()
                 try? await Task.sleep(for: .seconds(4))
             }
+        }
+    }
+
+    private func canRetry(_ j: PrintJob) -> Bool {
+        (j.state == "failed" || j.state == "cancelled") && j.fileId != nil
+    }
+
+    private func retry(_ j: PrintJob) {
+        Task {
+            do {
+                try await state.client?.retryJob(j.id)
+                successHaptic()
+            } catch {
+                state.report(error)
+            }
+            await load()
+        }
+    }
+
+    private func move(_ j: PrintJob, to index: Int) {
+        guard let from = waiting.firstIndex(of: j), index >= 0, index < waiting.count else { return }
+        // onMove's destination counts positions before the move, so moving down needs one more.
+        reorder(from: IndexSet(integer: from), to: index > from ? index + 1 : index)
+    }
+
+    private func reorder(from: IndexSet, to: Int) {
+        var order = waiting
+        order.move(fromOffsets: from, toOffset: to)
+        let ids = order.map(\.id)
+        // Show the new order straight away, then save it.
+        jobs = order + jobs.filter { $0.state != "queued" }
+        Task {
+            do {
+                try await state.client?.reorderQueue(machine: machine.id, jobIds: ids)
+            } catch {
+                state.report(error)
+            }
+            await load()
         }
     }
 
@@ -544,24 +612,41 @@ struct PrintQueueView: View {
 struct JobRow: View {
     let job: PrintJob
     var showMachine = false
+    /// Place in the printer's queue, for waiting jobs.
+    var place: Int?
     let open: (Int) -> Void
+    var retry: (() -> Void)?
 
     var body: some View {
-        Button { if let id = job.modelId { open(id) } } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(job.modelName).lineLimit(1)
-                    Text([showMachine ? job.machineName : nil, job.external == true ? "Started outside 3DVault" : job.user, (job.finishedAt ?? job.createdAt).formatted(date: .abbreviated, time: .shortened)]
-                        .compactMap { $0 }.joined(separator: " · "))
-                        .font(.caption).foregroundStyle(.secondary)
-                    if !job.error.isEmpty {
-                        Text(job.error).font(.caption).foregroundStyle(.red)
+        // The retry button sits beside the row's own button rather than inside it, so a tap on
+        // it doesn't also open the model.
+        HStack {
+            Button { if let id = job.modelId { open(id) } } label: {
+                HStack {
+                    if let place {
+                        Text("\(place)").font(.callout.monospacedDigit()).foregroundStyle(.secondary).frame(minWidth: 18)
                     }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(job.modelName).lineLimit(1)
+                        Text([showMachine ? job.machineName : nil, job.external == true ? "Started outside 3DVault" : job.user, (job.finishedAt ?? job.createdAt).formatted(date: .abbreviated, time: .shortened)]
+                            .compactMap { $0 }.joined(separator: " · "))
+                            .font(.caption).foregroundStyle(.secondary)
+                        if !job.error.isEmpty {
+                            Text(job.error).font(.caption).foregroundStyle(.red)
+                        }
+                    }
+                    Spacer()
                 }
-                Spacer()
-                StateBadge(state: job.state)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            if let retry {
+                Button("Retry", action: retry)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .help("Add this print to the end of the printer's queue again")
+            }
+            StateBadge(state: job.state)
         }
-        .buttonStyle(.plain)
     }
 }

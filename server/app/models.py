@@ -296,6 +296,9 @@ class PrintJob(Base):
     total_layers: Mapped[int | None] = mapped_column(Integer, nullable=True)
     remaining_s: Mapped[int | None] = mapped_column(Integer, nullable=True)
     error: Mapped[str] = mapped_column(Text, default="")
+    # Place in the printer's queue once someone reorders it. Jobs without one wait after those
+    # with one, oldest first.
+    position: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

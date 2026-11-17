@@ -362,6 +362,15 @@ extension APIClient {
     @discardableResult
     public func cancelJob(_ id: Int) async throws -> PrintJob { try await decode(send("jobs/\(id)/cancel", method: "POST")) }
 
+    /// Queues a failed or cancelled print again on the same printer. Returns the new job.
+    @discardableResult
+    public func retryJob(_ id: Int) async throws -> PrintJob { try await decode(send("jobs/\(id)/retry", method: "POST")) }
+
+    /// Sets the order of a printer's waiting jobs. `jobIds` must list every waiting job once.
+    public func reorderQueue(machine: Int, jobIds: [Int]) async throws {
+        _ = try await send("machines/\(machine)/queue", method: "PUT", json: ["job_ids": .array(jobIds.map { .number(Double($0)) })])
+    }
+
     /// pause | resume | cancel
     public func control(machine: Int, _ action: String) async throws {
         _ = try await send("machines/\(machine)/\(action)", method: "POST")

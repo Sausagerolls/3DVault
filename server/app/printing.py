@@ -24,6 +24,10 @@ ACTIVE = ("uploading", "printing", "paused")
 ENDED = ("finished", "failed", "cancelled")
 
 
+# Waiting jobs in the order they print.
+QUEUE_ORDER = (PrintJob.position.is_(None), PrintJob.position, PrintJob.id)
+
+
 class PrintManager:
     def __init__(self) -> None:
         self._lock = threading.RLock()
@@ -168,7 +172,7 @@ class PrintManager:
             nxt = (
                 db.query(PrintJob)
                 .filter(PrintJob.machine_id == machine.id, PrintJob.state == "queued")
-                .order_by(PrintJob.id)
+                .order_by(*QUEUE_ORDER)
                 .first()
             )
             if nxt:

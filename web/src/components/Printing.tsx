@@ -310,30 +310,79 @@ export function JobList({ machineId, modelId }: { machineId?: number; modelId?: 
   const qs = machineId != null ? `machine_id=${machineId}` : `model_id=${modelId}`;
   const jobs = useQuery({ queryKey: ["jobs", qs], queryFn: () => api<PrintJob[]>(`/jobs?${qs}`), refetchInterval: 4000 });
   const qc = useQueryClient();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const run = async (op: () => Promise<unknown>, done?: string) => {
+    setBusy(true);
+    try {
+      await op();
+      if (done) toast(done);
+    } catch (e) {
+      toast((e as Error).message, true);
+    } finally {
+      setBusy(false);
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+      qc.invalidateQueries({ queryKey: ["machines"] });
+    }
+  };
   if (!jobs.data?.length) return <p className="dim" style={{ margin: 0 }}>No prints yet.</p>;
+  // The server lists a printer's waiting jobs first, in the order they will print.
+  const waiting = machineId != null ? jobs.data.filter((j) => j.state === "queued") : [];
+  const move = (index: number, by: number) => {
+    const ids = waiting.map((j) => j.id);
+    const [id] = ids.splice(index, 1);
+    ids.splice(index + by, 0, id);
+    run(() => api(`/machines/${machineId}/queue`, { method: "PUT", json: { job_ids: ids } }));
+  };
   return (
     <table className="list">
       <tbody>
-        {jobs.data.map((j) => (
-          <tr key={j.id}>
-            <td className="ellipsis">
-              {machineId != null && j.model_id ? <Link className="link" to={`/models/${j.model_id}`}>{j.model_name}</Link> : machineId != null ? j.model_name : j.machine_name}
-              {j.error && <div style={{ color: "var(--danger)", fontSize: 12 }}>{j.error}</div>}
-            </td>
-            <td className="dim" style={{ fontSize: 12, whiteSpace: "nowrap" }}>
-              {[j.external ? "Started outside 3DVault" : j.user, new Date(j.finished_at ?? j.created_at).toLocaleString()].filter(Boolean).join(" · ")}
-            </td>
-            <td style={{ textAlign: "right" }}>
-              {j.state === "queued" ? (
-                <button className="small" onClick={async () => (await api(`/jobs/${j.id}/cancel`, { method: "POST" }), qc.invalidateQueries({ queryKey: ["jobs"] }))}>
-                  Remove
-                </button>
-              ) : (
-                <StateBadge state={j.state} />
+        {jobs.data.map((j) => {
+          const place = waiting.indexOf(j);
+          return (
+            <tr key={j.id}>
+              {machineId != null && (
+                <td style={{ width: 1, whiteSpace: "nowrap" }}>
+                  {place >= 0 && waiting.length > 1 && (
+                    <span className="row" style={{ gap: 2 }}>
+                      <button className="small ghost" title="Print sooner" aria-label="Move up" disabled={busy || place === 0} onClick={() => move(place, -1)}>▲</button>
+                      <button className="small ghost" title="Print later" aria-label="Move down" disabled={busy || place === waiting.length - 1} onClick={() => move(place, 1)}>▼</button>
+                    </span>
+                  )}
+                </td>
               )}
-            </td>
-          </tr>
-        ))}
+              <td className="ellipsis">
+                {place >= 0 && <span className="dim" style={{ marginRight: 6 }}>{place + 1}.</span>}
+                {machineId != null && j.model_id ? <Link className="link" to={`/models/${j.model_id}`}>{j.model_name}</Link> : machineId != null ? j.model_name : j.machine_name}
+                {j.error && <div style={{ color: "var(--danger)", fontSize: 12 }}>{j.error}</div>}
+              </td>
+              <td className="dim" style={{ fontSize: 12, whiteSpace: "nowrap" }}>
+                {[j.external ? "Started outside 3DVault" : j.user, new Date(j.finished_at ?? j.created_at).toLocaleString()].filter(Boolean).join(" · ")}
+              </td>
+              <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                {j.state === "queued" ? (
+                  <button className="small" disabled={busy} onClick={() => run(() => api(`/jobs/${j.id}/cancel`, { method: "POST" }))}>
+                    Remove
+                  </button>
+                ) : (
+                  <span className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
+                    {(j.state === "failed" || j.state === "cancelled") && j.file_id != null && (
+                      <button
+                        className="small"
+                        disabled={busy}
+                        title="Add this print to the end of the printer's queue again"
+                        onClick={() => run(() => api(`/jobs/${j.id}/retry`, { method: "POST" }), `Added ${j.model_name} to the ${j.machine_name} queue`)}
+                      >
+                        Retry
+                      </button>
+                    )}
+                    <StateBadge state={j.state} />
+                  </span>
+                )}
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );

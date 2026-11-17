@@ -19,7 +19,7 @@ from .library import file_path
 from . import prepare, services, slicer, toolpaths
 from .mesh import MeshError
 from .models import File, Machine, Model, Printer, PrintJob, SliceTask, User
-from .printing import ACTIVE, manager
+from .printing import ACTIVE, QUEUE_ORDER, manager
 from .secretbox import seal
 
 router = APIRouter(prefix="/api/v1", tags=["printing"])
@@ -332,10 +332,50 @@ def list_jobs(
     if mine:
         # external=true also includes prints started outside 3DVault, which belong to no one.
         q = q.filter(or_(PrintJob.user_id == user.id, PrintJob.user_id.is_(None)) if external else PrintJob.user_id == user.id)
+    # Waiting jobs come first, in the order they will print.
+    waiting = q.filter(PrintJob.state == "queued").order_by(*QUEUE_ORDER).all()
     if active:
-        q = q.filter(PrintJob.state.in_(("queued", *ACTIVE)))
-        return [_job_out(j) for j in q.order_by(PrintJob.id).limit(limit)]
-    return [_job_out(j) for j in q.order_by(PrintJob.id.desc()).limit(min(limit, 200))]
+        running = q.filter(PrintJob.state.in_(ACTIVE)).order_by(PrintJob.id).all()
+        return [_job_out(j) for j in (running + waiting)[:limit]]
+    rest = q.filter(PrintJob.state != "queued").order_by(PrintJob.id.desc()).limit(min(limit, 200)).all()
+    return [_job_out(j) for j in waiting + rest]
+
+
+class QueueOrderIn(BaseModel):
+    job_ids: list[int]
+
+
+@router.put("/machines/{machine_id}/queue")
+def reorder_queue(machine_id: int, body: QueueOrderIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    """Set the order of a printer's waiting jobs. The list must hold every waiting job once."""
+    _machine(db, machine_id)
+    waiting = db.query(PrintJob).filter(PrintJob.machine_id == machine_id, PrintJob.state == "queued").all()
+    by_id = {j.id: j for j in waiting}
+    if sorted(body.job_ids) != sorted(by_id):
+        raise HTTPException(409, "The queue has changed. Refresh and try again.")
+    for n, job_id in enumerate(body.job_ids, 1):
+        by_id[job_id].position = n
+    db.commit()
+    return [_job_out(by_id[i]) for i in body.job_ids]
+
+
+@router.post("/jobs/{job_id}/retry")
+def retry_job(job_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    """Queue a failed or cancelled print again on the same printer, with the same plate and options."""
+    j = db.get(PrintJob, job_id)
+    if j is None:
+        raise HTTPException(404)
+    if j.state not in ("failed", "cancelled"):
+        raise HTTPException(409, "Only failed or cancelled prints can be retried")
+    if j.file_id is None:
+        raise HTTPException(
+            400,
+            "This print isn't in the library, so it can't be sent again. Start it on the printer instead."
+            if (j.options or {}).get("external") else "The file for this print has been deleted",
+        )
+    options = {k: v for k, v in (j.options or {}).items() if k not in ("external", "ams_mapping")}
+    ams = (j.options or {}).get("ams_mapping") or []
+    return create_job(JobIn(file_id=j.file_id, machine_id=j.machine_id, plate=j.plate, ams_mapping=ams, options=options), db, user)
 
 
 @router.get("/jobs/{job_id}")
