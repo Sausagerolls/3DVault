@@ -289,6 +289,10 @@ private struct PrinterCard: View {
             CameraFullScreenView(machineId: machine.id) { fullScreen = false }
         }
         #endif
+        .task {
+            // Testing: VAULT_TEST_QUEUE=1 opens each printer's queue.
+            if ProcessInfo.processInfo.environment["VAULT_TEST_QUEUE"] != nil { showQueue = true }
+        }
         .padding(16)
         .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: 16))
         .confirmationDialog("Stop this print?", isPresented: $confirmCancel, titleVisibility: .visible) {
@@ -492,9 +496,10 @@ struct PrintQueueView: View {
     @Environment(AppState.self) private var state
     let machine: Machine
     let open: (Int) -> Void
-    @State private var jobs: [PrintJob] = []
-
-    private var waiting: [PrintJob] { jobs.filter { $0.state == "queued" } }
+    // Kept apart so the 4-second refresh doesn't redraw the waiting list, and cancel a drag,
+    // when only the running print's progress has changed.
+    @State private var waiting: [PrintJob] = []
+    @State private var history: [PrintJob] = []
 
     var body: some View {
         List {
@@ -502,11 +507,17 @@ struct PrintQueueView: View {
             if !waiting.isEmpty {
                 Section {
                     ForEach(Array(waiting.enumerated()), id: \.element.id) { index, j in
-                        JobRow(job: j, place: index + 1, open: open)
+                        // On a Mac a row that is a button takes the mouse, so the row can't be
+                        // dragged. Open the model from the context menu there instead.
+                        JobRow(job: j, place: index + 1, open: open, opensOnClick: !isMac)
                             .swipeActions {
                                 Button("Remove", role: .destructive) { cancel(j) }
                             }
                             .contextMenu {
+                                if isMac, let id = j.modelId {
+                                    Button { open(id) } label: { Label("Open Model", systemImage: "cube") }
+                                    Divider()
+                                }
                                 Button { move(j, to: 0) } label: { Label("Print Next", systemImage: "arrow.up.to.line") }
                                     .disabled(index == 0)
                                 Button { move(j, to: index - 1) } label: { Label("Move Up", systemImage: "arrow.up") }
@@ -531,7 +542,7 @@ struct PrintQueueView: View {
                 }
             }
             Section("History") {
-                ForEach(jobs.filter { $0.state != "queued" }) { j in
+                ForEach(history) { j in
                     JobRow(job: j, open: open, retry: canRetry(j) ? { retry(j) } : nil)
                         .swipeActions {
                             if canRetry(j) {
@@ -543,7 +554,7 @@ struct PrintQueueView: View {
         }
         .navigationTitle(machine.name)
         .overlay {
-            if jobs.isEmpty { ContentUnavailableView("No Prints Yet", systemImage: "printer") }
+            if waiting.isEmpty && history.isEmpty { ContentUnavailableView("No Prints Yet", systemImage: "printer") }
         }
         .refreshable { await load() }
         .task {
@@ -552,6 +563,14 @@ struct PrintQueueView: View {
                 try? await Task.sleep(for: .seconds(4))
             }
         }
+    }
+
+    private var isMac: Bool {
+        #if os(macOS)
+        true
+        #else
+        false
+        #endif
     }
 
     private func canRetry(_ j: PrintJob) -> Bool {
@@ -581,7 +600,7 @@ struct PrintQueueView: View {
         order.move(fromOffsets: from, toOffset: to)
         let ids = order.map(\.id)
         // Show the new order straight away, then save it.
-        jobs = order + jobs.filter { $0.state != "queued" }
+        waiting = order
         Task {
             do {
                 try await state.client?.reorderQueue(machine: machine.id, jobIds: ids)
@@ -594,7 +613,11 @@ struct PrintQueueView: View {
 
     private func load() async {
         guard let client = state.client else { return }
-        if let j = try? await client.printJobs(machineId: machine.id) { jobs = j }
+        guard let j = try? await client.printJobs(machineId: machine.id) else { return }
+        let w = j.filter { $0.state == "queued" }
+        let h = j.filter { $0.state != "queued" }
+        if w != waiting { waiting = w }
+        if h != history { history = h }
     }
 
     private func cancel(_ j: PrintJob) {
@@ -616,30 +639,18 @@ struct JobRow: View {
     var place: Int?
     let open: (Int) -> Void
     var retry: (() -> Void)?
+    var opensOnClick = true
 
     var body: some View {
         // The retry button sits beside the row's own button rather than inside it, so a tap on
         // it doesn't also open the model.
         HStack {
-            Button { if let id = job.modelId { open(id) } } label: {
-                HStack {
-                    if let place {
-                        Text("\(place)").font(.callout.monospacedDigit()).foregroundStyle(.secondary).frame(minWidth: 18)
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(job.modelName).lineLimit(1)
-                        Text([showMachine ? job.machineName : nil, job.external == true ? "Started outside 3DVault" : job.user, (job.finishedAt ?? job.createdAt).formatted(date: .abbreviated, time: .shortened)]
-                            .compactMap { $0 }.joined(separator: " · "))
-                            .font(.caption).foregroundStyle(.secondary)
-                        if !job.error.isEmpty {
-                            Text(job.error).font(.caption).foregroundStyle(.red)
-                        }
-                    }
-                    Spacer()
-                }
-                .contentShape(Rectangle())
+            if opensOnClick {
+                Button { if let id = job.modelId { open(id) } } label: { details }
+                    .buttonStyle(.plain)
+            } else {
+                details
             }
-            .buttonStyle(.plain)
             if let retry {
                 Button("Retry", action: retry)
                     .buttonStyle(.bordered)
@@ -648,5 +659,24 @@ struct JobRow: View {
             }
             StateBadge(state: job.state)
         }
+    }
+
+    private var details: some View {
+        HStack {
+            if let place {
+                Text("\(place)").font(.callout.monospacedDigit()).foregroundStyle(.secondary).frame(minWidth: 18)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(job.modelName).lineLimit(1)
+                Text([showMachine ? job.machineName : nil, job.external == true ? "Started outside 3DVault" : job.user, (job.finishedAt ?? job.createdAt).formatted(date: .abbreviated, time: .shortened)]
+                    .compactMap { $0 }.joined(separator: " · "))
+                    .font(.caption).foregroundStyle(.secondary)
+                if !job.error.isEmpty {
+                    Text(job.error).font(.caption).foregroundStyle(.red)
+                }
+            }
+            Spacer()
+        }
+        .contentShape(Rectangle())
     }
 }
